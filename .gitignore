@@ -1,0 +1,13 @@
+# テスト用入力写真（NEF・XMP）
+.env/
+
+# 実行時の一時ファイル
+/tmp/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# AI
+.claude/settings.local.json

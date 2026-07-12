@@ -27,10 +27,17 @@ ls <DIR>/*.NEF
 [N/M] Analyzing DSC_1234.NEF...
 ```
 
-NEFはそのまま閲覧できないため、exiftoolで埋め込みJPEGを抽出し、1280px にリサイズしてから判断する。
+NEFはそのまま閲覧できないため、埋め込みJPEGを抽出してから判断する。
+`convert` (ImageMagick) の有無で以下を使い分ける。
 
 ```bash
-exiftool -b -JpgFromRaw "<DIR>/DSC_1234.NEF" | convert - -resize "1280x1280>" /tmp/DSC_1234.jpg
+# ImageMagick がある場合: JpgFromRaw を 1280px にリサイズして使用（高品質）
+if command -v convert &>/dev/null; then
+  exiftool -b -JpgFromRaw "<DIR>/DSC_1234.NEF" | convert - -resize "1280x1280>" /tmp/DSC_1234.jpg
+else
+  # ImageMagick がない場合: 埋め込み PreviewImage (640x424) をそのまま使用
+  exiftool -b -PreviewImage "<DIR>/DSC_1234.NEF" > /tmp/DSC_1234.jpg
+fi
 ```
 
 抽出したJPEGを `Read` ツールで読み込んで視覚的に評価する。

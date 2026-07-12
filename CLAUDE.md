@@ -19,30 +19,39 @@ ClaudeがNEFファイルを評価してXMPサイドカーに採用/不採用ラ�
 ls <DIR>/*.NEF
 ```
 
-### 2. 各NEFからJPEGプレビューを抽出して評価
+### 2. バッチ処理でJPEGを抽出・評価
 
-各ファイルを処理する前に、以下の形式で進捗を出力する（テキスト出力として必ず行うこと）:
+**4枚ずつのバッチ**に分けて処理する。各バッチで以下のStep 1〜3を繰り返す。
+
+#### Step 1: バッチ内の全NEFからJPEGを並列抽出
+
+バッチ開始時にログを出力する（テキスト出力として必ず行うこと）:
 
 ```
-[N/M] Analyzing DSC_1234.NEF...
+[Batch X/Y] Extracting DSC_1234.NEF, DSC_1235.NEF, DSC_1236.NEF, DSC_1237.NEF...
 ```
 
-NEFはそのまま閲覧できないため、埋め込みJPEGを抽出してから判断する。
-`convert` (ImageMagick) の有無で以下を使い分ける。
+`&` と `wait` で並列抽出する:
 
 ```bash
-# ImageMagick がある場合: JpgFromRaw を 1280px にリサイズして使用（高品質）
+# ImageMagick がある場合
 if command -v convert &>/dev/null; then
-  exiftool -b -JpgFromRaw "<DIR>/DSC_1234.NEF" | convert - -resize "1280x1280>" /tmp/DSC_1234.jpg
+  exiftool -b -JpgFromRaw "<DIR>/DSC_1234.NEF" | convert - -resize "1280x1280>" /tmp/DSC_1234.jpg &
+  exiftool -b -JpgFromRaw "<DIR>/DSC_1235.NEF" | convert - -resize "1280x1280>" /tmp/DSC_1235.jpg &
+  # ... バッチ内の全ファイル
 else
-  # ImageMagick がない場合: 埋め込み PreviewImage (640x424) をそのまま使用
-  exiftool -b -PreviewImage "<DIR>/DSC_1234.NEF" > /tmp/DSC_1234.jpg
+  exiftool -b -PreviewImage "<DIR>/DSC_1234.NEF" > /tmp/DSC_1234.jpg &
+  exiftool -b -PreviewImage "<DIR>/DSC_1235.NEF" > /tmp/DSC_1235.jpg &
+  # ... バッチ内の全ファイル
 fi
+wait
 ```
 
-抽出したJPEGを `Read` ツールで読み込んで視覚的に評価する。
+#### Step 2: バッチ内の全画像を一度に読み込んで評価
 
-### 3. ラベルを書き込む
+`Read` ツールでバッチ内の全JPEGを読み込み、**まとめて採否を決定**する。
+
+#### Step 3: バッチ内の全ファイルにラベルを書き込む
 
 ```bash
 # 採用
@@ -61,10 +70,7 @@ XMPサイドカー（`<DIR>/DSC_1234.xmp`）が自動的に作成・更新され
 
 ```
 [N/M] DSC_1234.NEF → accepted
-```
-または
-```
-[N/M] DSC_1234.NEF → rejected
+[N/M] DSC_1235.NEF → rejected
 ```
 
 ### 4. 後片付け

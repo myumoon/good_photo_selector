@@ -19,39 +19,39 @@ ClaudeがNEFファイルを評価してXMPサイドカーに採用/不採用ラ�
 ls <DIR>/*.NEF
 ```
 
-### 2. バッチ処理でJPEGを抽出・評価
+### 2. 全NEFからJPEGを一括並列抽出
 
-**4枚ずつのバッチ**に分けて処理する。各バッチで以下のStep 1〜3を繰り返す。
-
-#### Step 1: バッチ内の全NEFからJPEGを並列抽出
-
-バッチ開始時にログを出力する（テキスト出力として必ず行うこと）:
+評価を始める前に、全ファイルのJPEGを一度に並列抽出する。
 
 ```
-[Batch X/Y] Extracting DSC_1234.NEF, DSC_1235.NEF, DSC_1236.NEF, DSC_1237.NEF...
+Extracting all previews in parallel...
 ```
-
-`&` と `wait` で並列抽出する:
 
 ```bash
-# ImageMagick がある場合
 if command -v convert &>/dev/null; then
-  exiftool -b -JpgFromRaw "<DIR>/DSC_1234.NEF" | convert - -resize "1280x1280>" /tmp/DSC_1234.jpg &
-  exiftool -b -JpgFromRaw "<DIR>/DSC_1235.NEF" | convert - -resize "1280x1280>" /tmp/DSC_1235.jpg &
-  # ... バッチ内の全ファイル
+  for nef in <DIR>/*.NEF; do
+    base=$(basename "$nef" .NEF)
+    exiftool -b -JpgFromRaw "$nef" | convert - -resize "1280x1280>" /tmp/${base}.jpg &
+  done
 else
-  exiftool -b -PreviewImage "<DIR>/DSC_1234.NEF" > /tmp/DSC_1234.jpg &
-  exiftool -b -PreviewImage "<DIR>/DSC_1235.NEF" > /tmp/DSC_1235.jpg &
-  # ... バッチ内の全ファイル
+  for nef in <DIR>/*.NEF; do
+    base=$(basename "$nef" .NEF)
+    exiftool -b -PreviewImage "$nef" > /tmp/${base}.jpg &
+  done
 fi
 wait
+echo "Extraction complete."
 ```
 
-#### Step 2: バッチ内の全画像を一度に読み込んで評価
+### 3. バッチ処理で評価・ラベル書き込み
+
+**4枚ずつのバッチ**に分けて処理する。各バッチで以下のStep 1〜2を繰り返す。
+
+#### Step 1: バッチ内の全画像を一度に読み込んで評価
 
 `Read` ツールでバッチ内の全JPEGを読み込み、**まとめて採否を決定**する。
 
-#### Step 3: バッチ内の全ファイルにラベルを書き込む
+#### Step 2: バッチ内の全ファイルにラベルを書き込む
 
 ```bash
 # 採用

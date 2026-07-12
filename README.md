@@ -16,7 +16,7 @@ Claude Code を使って Nikon NEF 写真を自動選別し、Lightroom 互換�
 
 ## セットアップ
 
-### 1. exiftool のインストール
+### 1. 依存ツールのインストール
 
 **WSL（推奨）**
 
@@ -27,12 +27,15 @@ bash bin/setup.sh
 または手動で:
 
 ```bash
-sudo apt install libimage-exiftool-perl
+sudo apt install libimage-exiftool-perl imagemagick
 ```
+
+> **Note**: ImageMagick (`convert`) がないと、JPEG プレビューが 6048×4024 のままClaudeに渡されトークンを大量消費します。インストール済みの場合は 1280px にリサイズして渡します。
 
 **Windows（WSL を使わず直接実行する場合）**
 
-[exiftool.org](https://exiftool.org/) から Windows 版をダウンロードし、`exiftool.exe` を PATH の通ったフォルダに配置する。
+- **exiftool**: [exiftool.org](https://exiftool.org/) から Windows 版をダウンロードし、`exiftool.exe` を PATH の通ったフォルダに配置する。
+- **ImageMagick**: [imagemagick.org](https://imagemagick.org/script/download.php#windows) から Windows 版をインストールし、`convert.exe` が PATH に通っていることを確認する。
 
 ### 2. リポジトリをクローン・セットアップ
 

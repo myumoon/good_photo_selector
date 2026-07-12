@@ -23,17 +23,34 @@ ls <DIR>/*.NEF
 
 評価を始める前に、全ファイルのJPEGを一度に並列抽出する。
 
+まず `settings/*.ini` から解像度を読み込む（なければデフォルト 640px）:
+
+```bash
+RESOLUTION=640
+for ini in settings/*.ini; do
+  [ -f "$ini" ] || break
+  val=$(grep -E '^\s*resolution\s*=' "$ini" | head -1 | sed 's/.*=\s*//; s/[^0-9].*//')
+  [ -n "$val" ] && RESOLUTION=$val
+  break
+done
+echo "Preview resolution: ${RESOLUTION}px"
+```
+
+解像度に応じて並列抽出する:
+
 ```
 Extracting all previews in parallel...
 ```
 
 ```bash
-if command -v convert &>/dev/null; then
+if [ "$RESOLUTION" -gt 640 ] && command -v convert &>/dev/null; then
+  # JpgFromRaw を指定解像度にリサイズ（高品質・ImageMagick 必須）
   for nef in <DIR>/*.NEF; do
     base=$(basename "$nef" .NEF)
-    exiftool -b -JpgFromRaw "$nef" | convert - -resize "1280x1280>" /tmp/${base}.jpg &
+    exiftool -b -JpgFromRaw "$nef" | convert - -resize "${RESOLUTION}x${RESOLUTION}>" /tmp/${base}.jpg &
   done
 else
+  # PreviewImage (640px) をそのまま使用（高速・ImageMagick 不要）
   for nef in <DIR>/*.NEF; do
     base=$(basename "$nef" .NEF)
     exiftool -b -PreviewImage "$nef" > /tmp/${base}.jpg &

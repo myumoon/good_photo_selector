@@ -30,6 +30,7 @@ else
     PROMPT="Follow the workflow in CLAUDE.md to select the following NEF photos: $FILE_LIST. Skip step 1 (file listing) and process only these specific files. Print progress as \"[N/M] Analyzing DSC_XXXX.NEF...\" before each file and \"[N/M] DSC_XXXX.NEF → accepted/rejected\" after labeling. Display \"Selection complete: X accepted / Y rejected\" when done."
 fi
 
+unset ANTHROPIC_API_KEY
 claude --dangerously-skip-permissions -p "$PROMPT"
 
 STATUS=$?

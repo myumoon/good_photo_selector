@@ -30,7 +30,7 @@ bash bin/setup.sh
 sudo apt install libimage-exiftool-perl imagemagick
 ```
 
-> **Note**: ImageMagick (`convert`) がないと、JPEG プレビューが 6048×4024 のままClaudeに渡されトークンを大量消費します。インストール済みの場合は 1280px にリサイズして渡します。
+> **Note**: ImageMagick (`convert`) がないと、JPEGプレビューが高解像度のままClaudeに渡されトークンを大量消費します。インストール済みの場合は解像度を減らし(デフォルト640px)にリサイズして渡します。
 
 **Windows（WSL を使わず直接実行する場合）**
 

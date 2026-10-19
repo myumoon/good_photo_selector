@@ -87,7 +87,6 @@ def _claude_argv(executable: str, model: str, schema: dict[str, Any]) -> list[st
 
 
 def _call_claude(prompt: str, schema: dict[str, Any], model: str) -> dict[str, Any]:
-    process_succeeded = False
     for attempt in range(2):
         try:
             executable = shutil.which("claude")
@@ -105,7 +104,6 @@ def _call_claude(prompt: str, schema: dict[str, Any], model: str) -> dict[str, A
             )
             if result.returncode != 0:
                 raise RuntimeError(f"claude exited with status {result.returncode}")
-            process_succeeded = True
             payload = json.loads(result.stdout)
             structured = payload.get("structured_output") if isinstance(payload, dict) else None
             if not isinstance(structured, dict) or not isinstance(structured.get("tiles"), list):
@@ -116,9 +114,7 @@ def _call_claude(prompt: str, schema: dict[str, Any], model: str) -> dict[str, A
         except Exception as exc:
             print(f"warning: Claude call {attempt + 1}/2 failed: {exc}", file=sys.stderr)
             if attempt == 1:
-                failure = RuntimeError("claude failed after one retry")
-                failure.process_succeeded = process_succeeded
-                raise failure from exc
+                raise RuntimeError("claude failed after one retry") from exc
     raise RuntimeError("claude failed")
 
 
@@ -199,11 +195,14 @@ def _make_sheets(
             text = str(number)
             if badge_font is None:
                 font = ImageFont.load_default()
-                text_width, text_height = font.getsize(text)
+                text_box = font.getbbox(text) if hasattr(font, "getbbox") else (0, 0, *font.getmask(text).size)
+                text_width = text_box[2] - text_box[0]
+                text_height = text_box[3] - text_box[1]
+                text_position = (1 - text_box[0], 1 - text_box[1])
                 text_width = max(1, text_width)
                 text_height = max(1, text_height)
                 badge = Image.new("RGB", (text_width + 2, text_height + 2), "white")
-                ImageDraw.Draw(badge).text((1, 1), text, fill="black", font=font)
+                ImageDraw.Draw(badge).text(text_position, text, fill="black", font=font)
                 badge_width = max(1, int(round(badge_size * badge.width / badge.height)))
                 badge = badge.resize((badge_width, badge_size), nearest)
                 canvas.paste(badge, (image_x, image_y))
@@ -389,12 +388,10 @@ def main(argv: list[str]) -> int:
             return 0
 
         reviewed_any = False
-        process_succeeded = False
         for burst_number, burst in enumerate(bursts, 1):
             try:
                 decisions = _review_burst(burst, burst_number, previews, hints, settings, workspace)
             except Exception as exc:
-                process_succeeded = process_succeeded or bool(getattr(exc, "process_succeeded", False))
                 names = ", ".join(nef.name for nef in burst)
                 print(f"warning: burst {burst_number} ({names}) is unrated: {exc}", file=sys.stderr)
                 continue
@@ -408,7 +405,7 @@ def main(argv: list[str]) -> int:
         accepted_count = sum(status == "accepted" for status in statuses.values())
         rejected_count = sum(status == "rejected" for status in statuses.values())
         print(f"Selection complete: {accepted_count} accepted / {rejected_count} rejected")
-        if bursts and not reviewed_any and not process_succeeded:
+        if bursts and not reviewed_any:
             print("warning: no burst was reviewed", file=sys.stderr)
             return 1
         return 0

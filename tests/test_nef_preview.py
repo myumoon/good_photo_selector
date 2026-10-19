@@ -122,7 +122,6 @@ def test_warns_and_skips_when_no_embedded_jpeg_or_exiftool(monkeypatch, capsys, 
 
 
 def test_contract_records_subifd_and_exififd_traps():
-    module = _module()
     contract_path = Path(__file__).resolve().parents[1] / "contracts" / "nef-preview.contract.json"
     contract = json.loads(contract_path.read_text(encoding="utf-8"))
     traps = {item["id"]: item for item in contract["silent_ignore"]}

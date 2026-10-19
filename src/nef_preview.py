@@ -138,7 +138,8 @@ def make_preview(nef: Path, out_jpg: Path, long_edge: int) -> Path | None:
     try:
         with Image.open(BytesIO(jpeg)) as embedded:
             preview = ImageOps.exif_transpose(embedded).convert("RGB")
-            preview.thumbnail((long_edge, long_edge), Image.Resampling.LANCZOS)
+            resampling = getattr(getattr(Image, "Resampling", Image), "LANCZOS")
+            preview.thumbnail((long_edge, long_edge), resampling)
             out_jpg = Path(out_jpg)
             out_jpg.parent.mkdir(parents=True, exist_ok=True)
             preview.save(out_jpg, format="JPEG", quality=90)

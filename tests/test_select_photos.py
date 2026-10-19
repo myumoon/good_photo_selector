@@ -431,4 +431,4 @@ def test_three_digit_fallback_badge_has_room_for_full_text(monkeypatch, tmp_path
     sheets = driver._make_sheets([image] * 123, tmp_path / "sheets", "burst-01", 12, 4, 256)
 
     with Image.open(sheets[-1][0]) as sheet:
-        assert sheet.getpixel((512 + 40, 16))[0] > 230
+        assert sheet.getpixel((512 + 48, 16))[0] > 230

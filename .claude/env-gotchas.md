@@ -12,3 +12,4 @@
 - PowerShell では `tail` が Git の `tail.exe` に解決され CreateFileMapping エラーで落ちることがある。末尾抽出は `Select-Object -Last N` を使う。
 - PowerShell の `python` は pyenv 3.11.9 で pytest が無い。pytest 実行は事前ブリーフどおり Git Bash の Python 環境を使う。
 - この実行環境では Git Bash 自体も `CreateFileMapping ... Win32 error 5` で起動できない。PowerShell から利用可能な pytest 付き Python を探す。
+- pytest の既定一時領域 `C:\Users\neko\AppData\Local\Temp` は sandbox が拒否する。実行時の `TEMP` と `TMP` を worktree 内へ向ける。

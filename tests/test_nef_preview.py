@@ -111,6 +111,20 @@ def test_falls_back_to_exiftool_only_when_embedded_jpeg_is_absent(monkeypatch, t
     assert commands[0][0][:3] == ["exiftool.exe", "-b", "-PreviewImage"]
 
 
+def test_make_preview_applies_nef_orientation_without_jpeg_exif(monkeypatch, tmp_path):
+    module = _module()
+    nef = tmp_path / "portrait.NEF"
+    Image.new("RGB", (40, 20), "red").save(nef, format="TIFF", tiffinfo={274: 6})
+    embedded_path = tmp_path / "embedded.jpg"
+    Image.new("RGB", (40, 20), "blue").save(embedded_path, format="JPEG")
+    monkeypatch.setattr(module, "extract_embedded_jpeg", lambda _path: embedded_path.read_bytes())
+    out = tmp_path / "preview.jpg"
+
+    assert module.make_preview(nef, out, 40) == out
+    with Image.open(out) as preview:
+        assert preview.width < preview.height
+
+
 def test_warns_and_skips_when_no_embedded_jpeg_or_exiftool(monkeypatch, capsys, tmp_path):
     module = _module()
     path = tmp_path / "missing-preview.NEF"

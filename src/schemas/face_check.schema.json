@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "properties": {
+    "tiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tile": {"type": "integer"},
+          "ok": {"type": "boolean"},
+          "reason": {"type": "string", "maxLength": 40}
+        },
+        "required": ["tile", "ok", "reason"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["tiles"],
+  "additionalProperties": false
+}

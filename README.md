@@ -27,15 +27,14 @@ bash bin/setup.sh
 または手動で:
 
 ```bash
-sudo apt install libimage-exiftool-perl imagemagick
+sudo apt install libimage-exiftool-perl python3-pil
 ```
 
-> **Note**: ImageMagick (`convert`) がないと、JPEGプレビューが高解像度のままClaudeに渡されトークンを大量消費します。インストール済みの場合は解像度を減らし(デフォルト640px)にリサイズして渡します。
+Pillow は NEF 内蔵 JPEG の縮小とコンタクトシート生成に使います。exiftool は内蔵 JPEG が見つからない NEF のフォールバック用です。
 
 **Windows（WSL を使わず直接実行する場合）**
 
-- **exiftool**: [exiftool.org](https://exiftool.org/) から Windows 版をダウンロードし、`exiftool.exe` を PATH の通ったフォルダに配置する。
-- **ImageMagick**: [imagemagick.org](https://imagemagick.org/script/download.php#windows) から Windows 版をインストールし、`convert.exe` が PATH に通っていることを確認する。
+- Python 3 と Pillow を用意する。exiftool は内蔵 JPEG がないファイルの読み込みに必要です。
 
 ### 2. リポジトリをクローン・セットアップ
 
@@ -66,13 +65,15 @@ bin\setup_sendto.bat をダブルクリック
 2. 右クリック → **送る → GootPhotoSelector**
 3. 以降は同じ
 
-### Claude Code から直接実行
+### コマンドから実行
 
-```
-「/path/to/photos フォルダの写真を選別してください」
+```bash
+python3 src/select_photos.py /path/to/photos
+python3 src/select_photos.py /path/to/photos --dry-run
+python3 src/select_photos.py DSC_0001.NEF DSC_0002.NEF --model opus
 ```
 
-Claude Code が CLAUDE.md のワークフローに従って自動処理する。
+`--dry-run` はコンタクトシートを生成して表示し、Claude 呼び出しと XMP 書き込みを行いません。`--keep-previews` を付けると一時プレビューとシートを残します。
 
 ## 選別基準
 
@@ -88,10 +89,11 @@ Claude Code が CLAUDE.md のワークフローに従って自動処理する。
 
 ```
 NEF ファイル
-  └─ exiftool で JPEG プレビューを抽出
-       └─ Claude が視覚評価
-            └─ src/set_label.py で XMP サイドカーに xmpDM:good を書き込み
-                 └─ Lightroom で採用/不採用ラベルとして表示
+  └─ Pillow + struct で最大の内蔵 JPEG を抽出して縮小
+       └─ 撮影時刻で連写をクラスタリング
+            └─ 番号付きコンタクトシートを Claude が構造化判定
+                 └─ src/set_label.py で XMP サイドカーに xmpDM:good を書き込み
+                      └─ Lightroom で採用/不採用ラベルとして表示
 ```
 
 ## ファイル構成
@@ -103,7 +105,16 @@ GootPhotoSelector/
 │   ├── good_photo_selector.sh    # Claude Code 起動スクリプト
 │   └── setup_sendto.bat          # 「送る」メニュー登録ツール
 ├── src/
-│   └── set_label.py        # XMP サイドカー書き込みライブラリ
+│   ├── select_photos.py    # NEF 選別ドライバー
+│   ├── nef_preview.py      # 内蔵 JPEG と撮影時刻の抽出
+│   ├── quality.py          # 品質ヒント・顔クロップの T1 スタブ
+│   ├── set_label.py        # XMP サイドカー書き込みライブラリ
+│   ├── prompts/            # Claude 判定プロンプト
+│   └── schemas/            # Claude 構造化出力スキーマ
+├── settings/
+│   └── config.ini.example  # モデル・連写・シート設定
+├── tests/                  # pytest による回帰テスト
+├── contracts/              # 実測 CLI / NEF 契約
 ├── docs/
 │   └── xmp_sample/         # 採用・不採用・評価なしの XMP サンプル
 ├── CLAUDE.md               # Claude Code 向けガイド

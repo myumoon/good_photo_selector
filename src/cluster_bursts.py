@@ -87,8 +87,11 @@ def _capture_times(nefs: list[Path]) -> dict[Path, float]:
     return times
 
 
-def cluster_bursts(nefs: list[Path], gap_seconds: float) -> list[list[Path]]:
-    times = _capture_times(nefs)
+def cluster_bursts(
+    nefs: list[Path], gap_seconds: float, times: dict[Path, float] | None = None,
+) -> list[list[Path]]:
+    if times is None:
+        times = _capture_times(nefs)
     # 撮影時刻が取れたものは時刻順、取れないものはファイル名順で末尾に。
     ordered = sorted(nefs, key=lambda p: (p not in times, times.get(p, 0.0), p.name))
 

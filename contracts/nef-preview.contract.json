@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "name": "nef-preview",
+  "captured_at": "2026-10-19T22:25:55Z",
+  "target": {
+    "kind": "file",
+    "identity": "Nikon NEF (Z 系, .env/test) を Pillow 9 + struct で読む",
+    "base": null
+  },
+  "probes": [
+    {
+      "id": "nef.subifd.DSC_7989",
+      "surface": "NEF SubIFD JPEG (330 -> 513/514)",
+      "arguments_exercised": true,
+      "request": {
+        "path": "DSC_7989.NEF",
+        "file_size": 29664799
+      },
+      "response": {
+        "byte_order": "II",
+        "magic": 42,
+        "ifd0_orientation": [
+          1
+        ],
+        "subifd_offsets": [
+          301824,
+          301944,
+          302644
+        ],
+        "subifds": [
+          {
+            "offset": 301824,
+            "has_513_514": true,
+            "jpeg_length": 1572127,
+            "starts_with_ffd8": true,
+            "size": [
+              6048,
+              4024
+            ]
+          },
+          {
+            "offset": 301944,
+            "has_513_514": false
+          },
+          {
+            "offset": 302644,
+            "has_513_514": true,
+            "jpeg_length": 784233,
+            "starts_with_ffd8": true,
+            "size": [
+              1620,
+              1080
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "nef.exif.DSC_7989",
+      "surface": "NEF EXIF via Pillow getexif()",
+      "arguments_exercised": true,
+      "request": {
+        "path": "DSC_7989.NEF"
+      },
+      "response": {
+        "exif_ifd.DateTimeOriginal(36867)": "2026:07:11 13:49:28",
+        "exif_ifd.SubSecTimeOriginal(37521)": "00",
+        "ifd0.DateTime(306)": "2026:07:11 13:49:28",
+        "ifd0.Orientation(274)": 1,
+        "ifd0.get(36867)": "2026:07:11 13:49:28",
+        "ifd0.get_ifd(330)": {}
+      }
+    },
+    {
+      "id": "nef.subifd.DSC_8020",
+      "surface": "NEF SubIFD JPEG (330 -> 513/514)",
+      "arguments_exercised": true,
+      "request": {
+        "path": "DSC_8020.NEF",
+        "file_size": 33129975
+      },
+      "response": {
+        "byte_order": "II",
+        "magic": 42,
+        "ifd0_orientation": [
+          1
+        ],
+        "subifd_offsets": [
+          309444,
+          309564,
+          310264
+        ],
+        "subifds": [
+          {
+            "offset": 309444,
+            "has_513_514": true,
+            "jpeg_length": 2130672,
+            "starts_with_ffd8": true,
+            "size": [
+              6048,
+              4024
+            ]
+          },
+          {
+            "offset": 309564,
+            "has_513_514": false
+          },
+          {
+            "offset": 310264,
+            "has_513_514": true,
+            "jpeg_length": 966776,
+            "starts_with_ffd8": true,
+            "size": [
+              1620,
+              1080
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "nef.exif.DSC_8020",
+      "surface": "NEF EXIF via Pillow getexif()",
+      "arguments_exercised": true,
+      "request": {
+        "path": "DSC_8020.NEF"
+      },
+      "response": {
+        "exif_ifd.DateTimeOriginal(36867)": "2026:07:11 15:29:41",
+        "exif_ifd.SubSecTimeOriginal(37521)": "13",
+        "ifd0.DateTime(306)": "2026:07:11 15:29:41",
+        "ifd0.Orientation(274)": 1,
+        "ifd0.get(36867)": "2026:07:11 15:29:41",
+        "ifd0.get_ifd(330)": {}
+      }
+    }
+  ],
+  "silent_ignore": [
+    {
+      "id": "nef.exif.datetimeoriginal-toplevel",
+      "surface": "NEF EXIF via Pillow getexif()",
+      "correct_request": {
+        "call": "getexif().get_ifd(0x8769).get(36867)"
+      },
+      "wrong_request": {
+        "call": "getexif().get(36867)"
+      },
+      "responses_identical": true,
+      "impact": "DateTimeOriginal は ExifIFD 側にある。IFD0 直下を引くと None になり連写クラスタが全崩れする",
+      "guard": "撮影時刻は get_ifd(0x8769) から読む。None なら mtime ではなくファイル名順へ退避"
+    },
+    {
+      "id": "nef.subifd.pillow-get_ifd-330",
+      "surface": "NEF SubIFD JPEG (330 -> 513/514)",
+      "correct_request": {
+        "call": "struct で IFD0 の 330 を辿る"
+      },
+      "wrong_request": {
+        "call": "getexif().get_ifd(330)"
+      },
+      "responses_identical": false,
+      "impact": "Pillow の get_ifd(330) は空 dict を返すので、内蔵 JPEG が見つからない",
+      "guard": "SubIFD は struct で自前パースする(contracts の subifds を参照)"
+    }
+  ]
+}

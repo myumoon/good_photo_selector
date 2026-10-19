@@ -253,6 +253,22 @@ def test_contact_sheets_split_and_keep_global_tile_numbers(tmp_path):
     assert len(sheets) == 3
 
 
+def test_contact_sheet_badge_overlays_image_and_three_tiles_use_tight_width(tmp_path):
+    driver = _driver()
+    images = []
+    for index in range(3):
+        path = tmp_path / f"wide_{index}.jpg"
+        Image.new("RGB", (48, 24), (180, 40, 40)).save(path, format="JPEG")
+        images.append(path)
+
+    sheets = driver._make_sheets(images, tmp_path / "sheets", "burst-01", 12, 4, 64)
+
+    with Image.open(sheets[0][0]) as sheet:
+        assert sheet.size == (3 * 64, 64)
+        red, green, blue = sheet.getpixel((5, 21))
+    assert red > 230 and green > 230 and blue > 230
+
+
 def test_all_contact_sheets_for_a_large_burst_use_one_claude_call(monkeypatch, tmp_path):
     driver = _driver()
     photo_dir = tmp_path / "photos"

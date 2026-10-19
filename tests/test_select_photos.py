@@ -432,3 +432,15 @@ def test_three_digit_fallback_badge_has_room_for_full_text(monkeypatch, tmp_path
 
     with Image.open(sheets[-1][0]) as sheet:
         assert sheet.getpixel((512 + 48, 16))[0] > 230
+
+
+def test_hints_are_computed_per_burst(monkeypatch, tmp_path):
+    driver = _driver()
+    photo_dir = tmp_path / "photos"
+    paths = _make_nefs(photo_dir, ["DSC_2001.NEF", "DSC_2002.NEF"])
+    _install_previews(monkeypatch, driver, tmp_path, paths, {paths[0]: 1.0, paths[1]: 10.0})
+    hint_calls = []
+    monkeypatch.setattr(driver.quality, "hints", lambda previews: hint_calls.append(list(previews)) or {})
+
+    assert driver.main([str(photo_dir), "--dry-run"]) == 0
+    assert [len(previews) for previews in hint_calls] == [1, 1]

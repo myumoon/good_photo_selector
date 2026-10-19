@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "properties": {
+    "tiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tile": {"type": "integer"},
+          "label": {"type": "string", "enum": ["accept", "reject", "none"]},
+          "reason": {"type": "string", "maxLength": 40}
+        },
+        "required": ["tile", "label", "reason"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["tiles"],
+  "additionalProperties": false
+}

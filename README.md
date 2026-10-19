@@ -9,45 +9,32 @@ Claude Code を使って Nikon NEF 写真を自動選別し、Lightroom 互換�
 
 ## 動作環境
 
-- Windows 10/11 + WSL2
-- Python 3.x（WSL 内）
-- Claude Code（claude.ai Pro/Max プラン）
+- Windows 10/11（WSL 不要）
+- Python 3.9 以上（`python` コマンドを PATH に登録）
+- Pillow
+- Claude Code ネイティブ Windows 版（`claude` コマンドを PATH に登録）
 - Adobe Lightroom（結果確認用）
+- OpenCV は任意です。未導入の場合、鮮明度ヒントと顔確認をスキップします。
 
 ## セットアップ
 
-### 1. 依存ツールのインストール
+### 1. リポジトリをクローンして依存関係をセットアップ
 
-**WSL（推奨）**
-
-```bash
-bash bin/setup.sh
-```
-
-または手動で:
-
-```bash
-sudo apt install libimage-exiftool-perl python3-pil
-```
-
-Pillow は NEF 内蔵 JPEG の縮小とコンタクトシート生成に使います。exiftool は内蔵 JPEG が見つからない NEF のフォールバック用です。
-
-**Windows（WSL を使わず直接実行する場合）**
-
-- Python 3 と Pillow を用意する。exiftool は内蔵 JPEG がないファイルの読み込みに必要です。
-
-### 2. リポジトリをクローン・セットアップ
-
-```bash
-# クローン
+```powershell
 git clone <repo-url>
 cd GootPhotoSelector
-
-# 「送る」メニューへの登録（Windows・初回のみ）
-bin\setup_sendto.bat をダブルクリック
+bin\setup.bat
 ```
 
-OpenCV は任意です。未導入の場合、鮮明度ヒントと顔クロップ確認をスキップします。
+先に Python 3.9 以上と Claude Code のネイティブ Windows 版をインストールし、`python` と `claude` を PATH から実行できるようにしてください。`bin\setup.bat` は両方の有無を確認し、Pillow、NumPy、OpenCV をインストールします。OpenCV は任意で、未導入の場合は鮮明度ヒントと顔確認をスキップします。
+
+### 2. 「送る」メニューへの登録（初回のみ）
+
+```powershell
+bin\setup_sendto.bat
+```
+
+`bin/good_photo_selector.sh` は Linux/WSL から手動実行する場合の補助スクリプトです。その環境にも Python と Claude Code が必要です。WSL に Claude Code がない場合は実行できません。
 
 ## 使い方
 
@@ -57,7 +44,7 @@ OpenCV は任意です。未導入の場合、鮮明度ヒントと顔クロッ�
 
 1. エクスプローラーで NEF ファイルが入ったフォルダを右クリック
 2. **送る → GootPhotoSelector**
-3. WSL ターミナルが開き Claude が自動選別を実行
+3. Windows のコンソールで Claude が自動選別を実行
 4. 完了後に `Selection complete: X accepted / Y rejected` と表示
 5. Enter で閉じる
 
@@ -69,10 +56,10 @@ OpenCV は任意です。未導入の場合、鮮明度ヒントと顔クロッ�
 
 ### コマンドから実行
 
-```bash
-python3 src/select_photos.py /path/to/photos
-python3 src/select_photos.py /path/to/photos --dry-run
-python3 src/select_photos.py DSC_0001.NEF DSC_0002.NEF --model opus
+```powershell
+python src\select_photos.py "C:\path\to\photos"
+python src\select_photos.py "C:\path\to\photos" --dry-run
+python src\select_photos.py "C:\path\DSC_0001.NEF" "C:\path\DSC_0002.NEF" --model opus
 ```
 
 `--dry-run` はコンタクトシートを生成して表示し、Claude 呼び出しと XMP 書き込みを行いません。`--keep-previews` を付けると一時プレビューとシートを残します。
@@ -90,12 +77,14 @@ python3 src/select_photos.py DSC_0001.NEF DSC_0002.NEF --model opus
 ## 仕組み
 
 ```
-NEF ファイル
-  └─ Pillow + struct で最大の内蔵 JPEG を抽出して縮小
-       └─ 撮影時刻で連写をクラスタリング
-            └─ 番号付きコンタクトシートを Claude が構造化判定
-                 └─ src/set_label.py で XMP サイドカーに xmpDM:good を書き込み
-                      └─ Lightroom で採用/不採用ラベルとして表示
+「送る」メニュー
+  └─ good_photo_selector.bat
+       └─ python src\select_photos.py
+            └─ Pillow + struct で最大の内蔵 JPEG を抽出して縮小
+                 └─ 撮影時刻で連写をクラスタリング
+                      └─ 番号付きコンタクトシートを Claude が構造化判定
+                           └─ src/set_label.py で XMP サイドカーに xmpDM:good を書き込み
+                                └─ Lightroom で採用/不採用ラベルとして表示
 ```
 
 ## ファイル構成
@@ -104,7 +93,9 @@ NEF ファイル
 GootPhotoSelector/
 ├── bin/
 │   ├── good_photo_selector.bat   # 「送る」ショートカットのターゲット
-│   ├── good_photo_selector.sh    # Python ドライバー起動スクリプト
+│   ├── good_photo_selector.sh    # Linux/WSL から手動実行する補助スクリプト
+│   ├── setup.bat                 # Windows 用依存関係セットアップ
+│   ├── setup.sh                  # Linux/WSL 用セットアップ
 │   └── setup_sendto.bat          # 「送る」メニュー登録ツール
 ├── src/
 │   ├── select_photos.py    # NEF 選別ドライバー

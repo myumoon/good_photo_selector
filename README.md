@@ -47,6 +47,8 @@ cd GootPhotoSelector
 bin\setup_sendto.bat をダブルクリック
 ```
 
+OpenCV は任意です。未導入の場合、鮮明度ヒントと顔クロップ確認をスキップします。
+
 ## 使い方
 
 ### 右クリックから起動（推奨）
@@ -102,7 +104,7 @@ NEF ファイル
 GootPhotoSelector/
 ├── bin/
 │   ├── good_photo_selector.bat   # 「送る」ショートカットのターゲット
-│   ├── good_photo_selector.sh    # Claude Code 起動スクリプト
+│   ├── good_photo_selector.sh    # Python ドライバー起動スクリプト
 │   └── setup_sendto.bat          # 「送る」メニュー登録ツール
 ├── src/
 │   ├── select_photos.py    # NEF 選別ドライバー

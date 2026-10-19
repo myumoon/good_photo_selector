@@ -104,12 +104,22 @@ def test_dry_run_builds_sheets_without_claude_or_xmp(monkeypatch, tmp_path, caps
     paths = _make_nefs(photo_dir, ["DSC_0020.NEF"])
     _install_previews(monkeypatch, driver, tmp_path, paths)
     monkeypatch.setattr(driver.subprocess, "run", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError()))
+    runtime = tmp_path / "runtime"
 
-    assert driver.main([str(photo_dir), "--dry-run"]) == 0
+    def make_temp_dir(prefix):
+        runtime.mkdir()
+        return str(runtime)
+
+    monkeypatch.setattr(driver.tempfile, "mkdtemp", make_temp_dir)
+
+    assert driver.main([str(photo_dir), "--dry-run", "--keep-previews"]) == 0
 
     output = capsys.readouterr().out
     assert "Dry run" in output
     assert "sheet" in output.lower()
+    assert "Previews retained" in output
+    assert any(runtime.rglob("*.jpg"))
+    assert runtime.exists()
     assert not paths[0].with_suffix(".xmp").exists()
     assert {path.name for path in photo_dir.iterdir()} == {"DSC_0020.NEF"}
 
@@ -188,6 +198,31 @@ def test_contact_sheets_split_and_keep_global_tile_numbers(tmp_path):
 
     assert [(start, end) for _path, start, end in sheets] == [(1, 2), (3, 4), (5, 5)]
     assert len(sheets) == 3
+
+
+def test_all_contact_sheets_for_a_large_burst_use_one_claude_call(monkeypatch, tmp_path):
+    driver = _driver()
+    photo_dir = tmp_path / "photos"
+    paths = _make_nefs(photo_dir, [f"DSC_{index:04d}.NEF" for index in range(10, 15)])
+    times = {path: 100.0 + index * 0.1 for index, path in enumerate(paths)}
+    _install_previews(monkeypatch, driver, tmp_path, paths, times)
+    settings = driver._load_settings()
+    settings.update({"tile_px": 32, "cols": 2, "max_tiles": 2})
+    monkeypatch.setattr(driver, "_load_settings", lambda: settings)
+    prompts = []
+
+    def run(args, input, **kwargs):
+        prompts.append(input)
+        return CompletedProcess(args, 0, _payload(args, [(tile, "none") for tile in range(1, 6)]), "")
+
+    monkeypatch.setattr(driver.subprocess, "run", run)
+
+    assert driver.main([str(photo_dir)]) == 0
+
+    assert len(prompts) == 1
+    assert "(tiles 1-2)" in prompts[0]
+    assert "(tiles 3-4)" in prompts[0]
+    assert "(tiles 5-5)" in prompts[0]
 
 
 def test_settings_read_model_cluster_and_sheet_values(monkeypatch, tmp_path):

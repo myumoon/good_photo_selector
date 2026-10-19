@@ -10,6 +10,21 @@ ClaudeがNEFファイルを評価し、XMPサイドカーにラベル（採用 /
 
 ## 使い方
 
+NEF フォルダまたはファイルを指定して Python ドライバーを実行する:
+
+```bash
+python3 src/select_photos.py <DIR | NEF...>
+python3 src/select_photos.py <DIR | NEF...> --model opus
+python3 src/select_photos.py <DIR | NEF...> --dry-run
+```
+
+設定は `settings/*.ini` から読み込む。`--dry-run` はシート生成まで行い、Claude 呼び出しと XMP 書き込みをしない。`--keep-previews` を付けると一時プレビューとコンタクトシートを残す。
+
+<details>
+<summary>旧手順（廃止・実行しない）</summary>
+
+以下は旧方式の記録。選別を実行するときは上記 Python ドライバーを使用する。
+
 ユーザーから「`<DIR>` の写真を選別して」と依頼されたときの手順:
 
 > **ファイル指定モード**: 特定のNEFファイルをリストで渡された場合は手順1をスキップし、そのファイルだけを対象に手順2から実行する。
@@ -108,6 +123,8 @@ rm /tmp/DSC_*.jpg
 ```
 
 ---
+
+</details>
 
 ## 選別基準
 

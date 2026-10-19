@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "contract_coverage": [
+    {
+      "contract_id": "M1",
+      "status": "PASS",
+      "evidence_paths": ["bin/good_photo_selector.bat"],
+      "tests": [
+        "cmd /c launcher with no arguments: displayed Usage and Error (code 1), process exit 1",
+        "cmd /c launcher --help: displayed CLI help and Done, process exit 0"
+      ],
+      "counterexample": "No arguments; the .env/test fixture was absent, so --help was used as the contract allows.",
+      "siblings": ["bin/setup_sendto.bat (unchanged shortcut caller)", "No other Windows selector launcher in scope"]
+    },
+    {
+      "contract_id": "M2",
+      "status": "PASS",
+      "evidence_paths": ["bin/setup.bat", "bin/setup.sh"],
+      "tests": [
+        "Ran setup.bat with PATH restricted to System32: displayed the missing-Python guidance and Next instruction, exited 1 as expected.",
+        "git diff --check main..HEAD -- bin/setup.bat: exit 0"
+      ],
+      "counterexample": "Python is unavailable on PATH; setup reports the prerequisite and skips pip.",
+      "siblings": ["bin/setup.sh (unchanged Linux/WSL setup)", "bin/setup_sendto.bat (unchanged registration step)"]
+    },
+    {
+      "contract_id": "M3",
+      "status": "PASS",
+      "evidence_paths": ["README.md", "CLAUDE.md"],
+      "tests": [
+        "git diff --check main..HEAD -- README.md CLAUDE.md: exit 0",
+        "Reviewed the edited environment, setup, Send To, and mechanism descriptions against the T3 requirements."
+      ],
+      "counterexample": "Replaced the former WSL-first setup and exiftool installation directions, and removed the WSL terminal launch description.",
+      "siblings": ["README.md", "CLAUDE.md"]
+    },
+    {
+      "contract_id": "M4",
+      "status": "PASS",
+      "evidence_paths": ["bin/good_photo_selector.bat", "tests/ (unchanged)"],
+      "tests": [
+        "Argumentless launcher check: exit 1 with Usage and Error (code 1).",
+        "Because .env/test did not exist, launcher --help was used: exit 0 with help and Done.",
+        "python -m pytest -q tests: 40 passed in 0.74s; baseline is 40."
+      ],
+      "counterexample": "Argumentless invocation; missing .env/test fixture used the permitted --help fallback.",
+      "siblings": ["All paths through bin/good_photo_selector.bat use the same argument-forwarding entry point", "Existing pytest suite"]
+    },
+    {
+      "contract_id": "I1",
+      "status": "PASS",
+      "evidence_paths": ["src/"],
+      "tests": [
+        "git diff --quiet main..HEAD -- src: exit 0",
+        "python -m pytest -q tests: 40 passed in 0.74s"
+      ],
+      "counterexample": "Compared the complete src/ path to main; no source changes were present.",
+      "siblings": ["All files under src/ (none changed)"]
+    },
+    {
+      "contract_id": "I2",
+      "status": "PASS",
+      "evidence_paths": ["bin/setup_sendto.bat", "bin/good_photo_selector.bat"],
+      "tests": [
+        "git diff --quiet main..HEAD -- bin/setup_sendto.bat: exit 0",
+        "Inspected the existing shortcut script before editing; its TargetPath remains good_photo_selector.bat."
+      ],
+      "counterexample": "Compared the shortcut registration script with main; it is unchanged.",
+      "siblings": ["bin/setup_sendto.bat (the only Send To registration script)"]
+    },
+    {
+      "contract_id": "I3",
+      "status": "PASS",
+      "evidence_paths": ["bin/good_photo_selector.bat"],
+      "tests": [
+        "Argumentless and --help launcher checks completed without invoking photo processing.",
+        "The launcher only changes its working directory, forwards arguments to Python, and displays status; it has no photo or XMP write command."
+      ],
+      "counterexample": "No photo folder was supplied to the launcher; .env/test was absent, so the permitted help fallback was used.",
+      "siblings": ["bin/good_photo_selector.bat (only Windows launcher in scope)"]
+    }
+  ],
+  "verification_runs": [
+    {
+      "command": "cmd /c \"bin\\good_photo_selector.bat\" < nul",
+      "status": "PASS (final run)",
+      "output_tail": "  GootPhotoSelector\n==============================\nUsage: right-click files/folder -> Send to -> GootPhotoSelector\n\n==============================\n  Error (code 1)\n==============================\nPress Enter to close...\nexit=1"
+    },
+    {
+      "command": "cmd /c \"bin\\good_photo_selector.bat\" --help < nul (PATH prepended with C:\\Users\\neko\\Anaconda3)",
+      "status": "PASS",
+      "output_tail": "  --model MODEL    Claude model name (overrides settings)\n  --dry-run        Build sheets without calling Claude or writing XMP\n  --keep-previews  Keep temporary previews and contact sheets\n\n==============================\n  Done\n==============================\nPress Enter to close...\nexit=0"
+    },
+    {
+      "command": "python -m pytest -q tests | Select-Object -Last 3 (Anaconda Python 3.9.12; TEMP/TMP inside worktree)",
+      "status": "PASS",
+      "output_tail": "........................................                                 [100%]\n40 passed in 0.74s\nexit=0"
+    },
+    {
+      "command": "git diff --check main..HEAD -- bin/good_photo_selector.bat bin/setup.bat README.md CLAUDE.md",
+      "status": "PASS",
+      "output_tail": "(no output; exit 0)"
+    },
+    {
+      "command": "git diff --quiet main..HEAD -- src; git diff --quiet main..HEAD -- bin/setup_sendto.bat",
+      "status": "PASS",
+      "output_tail": "src unchanged: exit=0\nsetup_sendto unchanged: exit=0"
+    },
+    {
+      "command": "Test-Path .env/test",
+      "status": "PASS (precondition check)",
+      "output_tail": "False"
+    },
+    {
+      "command": "cmd /c \"bin\\setup.bat\" < nul (PATH restricted to System32)",
+      "status": "PASS (expected missing-Python exit 1)",
+      "output_tail": "==============================\n  GootPhotoSelector Setup\n==============================\n\n[ERROR] Python 3.9 or newer was not found in PATH.\nInstall Python and make sure the python command is available.\n\nNext: run bin\\setup_sendto.bat to add GootPhotoSelector to Send To.\nexit=1"
+    },
+    {
+      "command": "Setup happy path with a temporary python.cmd shim",
+      "status": "HARNESS_LIMITATION",
+      "output_tail": "==============================\n  GootPhotoSelector Setup\n==============================\n\nPython 3.9.12 (stub)\n[python shim] --version\nexit=0",
+      "notes": "A .cmd shim terminates the caller batch instead of returning like python.exe. The temporary shim was removed. The normal pip installation path was not run to avoid installing packages into the shared Python environment."
+    },
+    {
+      "command": "Initial argumentless launcher check before escaping the code display parentheses",
+      "status": "FIXED",
+      "output_tail": "  GootPhotoSelector\n==============================\nUsage: right-click files/folder -> Send to -> GootPhotoSelector\n\n==============================\n  Error (code 1\n==============================\nPress Enter to close...\nexit=1"
+    },
+    {
+      "command": "Initial --help check with default PATH",
+      "status": "ENVIRONMENT_LIMITATION",
+      "output_tail": "ModuleNotFoundError: No module named 'PIL'\n==============================\n  GootPhotoSelector\n==============================\n\n==============================\n  Error (code 1)\n==============================\nPress Enter to close...\nexit=1",
+      "notes": "Repeated successfully with the measured Anaconda Python 3.9.12 environment prepended to PATH."
+    }
+  ],
+  "notes": "The .env/test dry-run could not run because that fixture is absent; the contract-permitted --help fallback passed. The setup script's Python-missing path was exercised; its normal pip install path was not executed to avoid changing the shared Python environment. The batch launcher forwards %* without delayed expansion, but a live Japanese/space-containing photo path was not available for execution."
+}

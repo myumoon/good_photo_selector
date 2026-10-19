@@ -15,6 +15,8 @@ _MODEL_URL = "https://github.com/opencv/opencv_zoo/raw/c97242ce7f/models/face_de
 _MODEL_BYTES = 345478
 _DEFAULT_CROP_PX = 384
 _WARNED = False
+_RUNTIME = None
+_UNAVAILABLE = None
 
 
 def _warn_unavailable(exc: Exception) -> None:
@@ -34,7 +36,8 @@ def _ensure_model() -> Path:
 
     _MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     try:
-        urllib.request.urlretrieve(_MODEL_URL, str(_MODEL_PATH))
+        with urllib.request.urlopen(_MODEL_URL, timeout=30) as response:
+            _MODEL_PATH.write_bytes(response.read())
         if _MODEL_PATH.stat().st_size != _MODEL_BYTES:
             raise ValueError("downloaded YuNet model has an unexpected size")
     except Exception:
@@ -47,12 +50,23 @@ def _ensure_model() -> Path:
 
 
 def _runtime():
-    import cv2
-    import numpy as np
+    global _RUNTIME, _UNAVAILABLE
+    if _UNAVAILABLE is not None:
+        raise RuntimeError(_UNAVAILABLE)
+    if _RUNTIME is not None:
+        return _RUNTIME
 
-    model_path = _ensure_model()
-    detector = cv2.FaceDetectorYN.create(str(model_path), "", (320, 320), 0.6, 0.3, 5000)
-    return cv2, np, detector
+    try:
+        import cv2
+        import numpy as np
+
+        model_path = _ensure_model()
+        detector = cv2.FaceDetectorYN.create(str(model_path), "", (320, 320), 0.6, 0.3, 5000)
+        _RUNTIME = cv2, np, detector
+        return _RUNTIME
+    except Exception as exc:
+        _UNAVAILABLE = str(exc)
+        raise
 
 
 def _read_and_detect(cv2, np, detector, preview: Path):

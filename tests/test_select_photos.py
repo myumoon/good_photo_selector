@@ -60,10 +60,12 @@ def test_end_to_end_clusters_reviews_and_writes_only_xmp(monkeypatch, tmp_path, 
     times = {paths[0]: 100.0, paths[1]: 100.25}
     _install_previews(monkeypatch, driver, tmp_path, paths, times)
     prompts = []
+    commands = []
     face_calls = []
 
     def run(args, input, **kwargs):
         prompts.append(input)
+        commands.append(args)
         return CompletedProcess(args, 0, _payload(args, [(1, "reject"), (2, "none")]), "")
 
     monkeypatch.setattr(driver.subprocess, "run", run)
@@ -83,7 +85,8 @@ def test_end_to_end_clusters_reviews_and_writes_only_xmp(monkeypatch, tmp_path, 
     assert "Selection complete: 1 accepted / 1 rejected" in output
     assert len(prompts) == 1
     assert all(path.name not in prompts[0] for path in paths)
-    assert "--allowedTools" in prompts[0] if False else True
+    assert commands[0][commands[0].index("--allowedTools") + 1] == "Read"
+    assert "--json-schema" in commands[0]
     assert len(face_calls) == 1
     assert "xmpDM:good=\"False\"" in paths[0].with_suffix(".xmp").read_text(encoding="utf-8")
     assert "xmpDM:good=\"True\"" in paths[1].with_suffix(".xmp").read_text(encoding="utf-8")

@@ -31,6 +31,7 @@ _DEFAULT_SETTINGS = {
     "tile_px": 512,
     "cols": 4,
     "max_tiles": 12,
+    "preview_px": 1600,
 }
 _SETTING_SOURCES = {
     "model": ("claude", "model", str),
@@ -38,6 +39,7 @@ _SETTING_SOURCES = {
     "tile_px": ("sheet", "tile_px", int),
     "cols": ("sheet", "cols", int),
     "max_tiles": ("sheet", "max_tiles", int),
+    "preview_px": ("preview", "long_edge", int),
 }
 _CLAUDE_TIMEOUT_SECONDS = 180
 
@@ -85,6 +87,7 @@ def _claude_argv(executable: str, model: str, schema: dict[str, Any]) -> list[st
 
 
 def _call_claude(prompt: str, schema: dict[str, Any], model: str) -> dict[str, Any]:
+    process_succeeded = False
     for attempt in range(2):
         try:
             executable = shutil.which("claude")
@@ -102,15 +105,20 @@ def _call_claude(prompt: str, schema: dict[str, Any], model: str) -> dict[str, A
             )
             if result.returncode != 0:
                 raise RuntimeError(f"claude exited with status {result.returncode}")
+            process_succeeded = True
             payload = json.loads(result.stdout)
             structured = payload.get("structured_output") if isinstance(payload, dict) else None
             if not isinstance(structured, dict) or not isinstance(structured.get("tiles"), list):
                 raise ValueError("claude response has no structured_output.tiles")
+            if type(payload.get("num_turns")) is int and payload["num_turns"] < 2:
+                print("warning: Claude may not have read the images (num_turns < 2)", file=sys.stderr)
             return structured
         except Exception as exc:
             print(f"warning: Claude call {attempt + 1}/2 failed: {exc}", file=sys.stderr)
             if attempt == 1:
-                raise RuntimeError("claude failed after one retry") from exc
+                failure = RuntimeError("claude failed after one retry")
+                failure.process_succeeded = process_succeeded
+                raise failure from exc
     raise RuntimeError("claude failed")
 
 
@@ -190,10 +198,14 @@ def _make_sheets(
             number = start_index + offset + 1
             text = str(number)
             if badge_font is None:
-                small_size = max(1, badge_size // 4)
-                badge = Image.new("RGB", (small_size, small_size), "white")
-                ImageDraw.Draw(badge).text((0, 0), text, fill="black", font=ImageFont.load_default())
-                badge = badge.resize((badge_size, badge_size), nearest)
+                font = ImageFont.load_default()
+                text_width, text_height = font.getsize(text)
+                text_width = max(1, text_width)
+                text_height = max(1, text_height)
+                badge = Image.new("RGB", (text_width + 2, text_height + 2), "white")
+                ImageDraw.Draw(badge).text((1, 1), text, fill="black", font=font)
+                badge_width = max(1, int(round(badge_size * badge.width / badge.height)))
+                badge = badge.resize((badge_width, badge_size), nearest)
                 canvas.paste(badge, (image_x, image_y))
             else:
                 badge_box = (
@@ -250,7 +262,7 @@ def _write_burst_labels(
         accepted = True if label == "accept" else False if label == "reject" else None
         try:
             set_label(nef, accepted)
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             print(f"warning: could not write XMP for {nef.name}: {exc}", file=sys.stderr)
             statuses[nef] = "unrated"
             continue
@@ -339,7 +351,7 @@ def main(argv: list[str]) -> int:
         previews = {}
         capture_times = {}
         for index, nef in enumerate(nefs, 1):
-            preview = make_preview(nef, workspace / "previews" / f"preview-{index:04d}.jpg", settings["tile_px"])
+            preview = make_preview(nef, workspace / "previews" / f"preview-{index:04d}.jpg", settings["preview_px"])
             if preview is None:
                 continue
             previews[nef] = preview
@@ -376,13 +388,17 @@ def main(argv: list[str]) -> int:
                     print(f"Dry run: no preview for {nef.name}; would remain unrated")
             return 0
 
+        reviewed_any = False
+        process_succeeded = False
         for burst_number, burst in enumerate(bursts, 1):
             try:
                 decisions = _review_burst(burst, burst_number, previews, hints, settings, workspace)
             except Exception as exc:
+                process_succeeded = process_succeeded or bool(getattr(exc, "process_succeeded", False))
                 names = ", ".join(nef.name for nef in burst)
                 print(f"warning: burst {burst_number} ({names}) is unrated: {exc}", file=sys.stderr)
                 continue
+            reviewed_any = True
             _write_burst_labels(burst, decisions, statuses)
 
         for index, nef in enumerate(nefs, 1):
@@ -392,6 +408,9 @@ def main(argv: list[str]) -> int:
         accepted_count = sum(status == "accepted" for status in statuses.values())
         rejected_count = sum(status == "rejected" for status in statuses.values())
         print(f"Selection complete: {accepted_count} accepted / {rejected_count} rejected")
+        if bursts and not reviewed_any and not process_succeeded:
+            print("warning: no burst was reviewed", file=sys.stderr)
+            return 1
         return 0
     finally:
         if args.keep_previews:

@@ -1,8 +1,0 @@
-{
-  "status": "DONE_WITH_CONCERNS",
-  "branch": "feature-quality-opencv-20261020",
-  "summary": "YuNet 2022mar による連写内の鮮明度ヒントと顔クロップ確認を実装し、プレビュー長辺設定とT1追補を反映しました。",
-  "intent": "OpenCV/NumPyを遅延importし、未導入・モデル取得失敗時は既存レビューを止めずに品質機能だけをスキップします。",
-  "notes": "Python 3.9.12で全38テスト、pyflakes、OpenCVなしでのドライバーimportを確認。証跡: .claude/implementation-evidence-1.json。",
-  "concerns": "M7の .env/test --dry-run --keep-previews による実機確認は契約どおり親側で行うため、この実装実行では未検証です。"
-}

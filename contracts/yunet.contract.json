@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "name": "yunet",
+  "captured_at": "2026-10-19T22:32:10Z",
+  "target": {
+    "kind": "file",
+    "identity": "cv2 4.6.0 (Windows, Anaconda py3.9) + opencv_zoo YuNet",
+    "base": null
+  },
+  "probes": [
+    {
+      "id": "yunet.download.2022mar",
+      "surface": "YuNet model download",
+      "arguments_exercised": true,
+      "request": {
+        "url": "https://github.com/opencv/opencv_zoo/raw/c97242ce7f/models/face_detection_yunet/face_detection_yunet_2022mar.onnx"
+      },
+      "response": {
+        "bytes": 345478,
+        "head8": "080612077079746f"
+      }
+    },
+    {
+      "id": "yunet.download.2023mar",
+      "surface": "YuNet model download",
+      "arguments_exercised": true,
+      "request": {
+        "url": "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+      },
+      "response": {
+        "bytes": 232589,
+        "head8": "080612077079746f"
+      }
+    },
+    {
+      "id": "yunet.detect.2022mar",
+      "surface": "cv2.FaceDetectorYN.detect",
+      "arguments_exercised": true,
+      "request": {
+        "model": "face_detection_yunet_2022mar.onnx",
+        "cv2": "4.6.0",
+        "nef": "DSC_7989.NEF",
+        "long_edge": 1024
+      },
+      "response": {
+        "input_shape": [
+          681,
+          1024,
+          3
+        ],
+        "set_input_size": [
+          1024,
+          681
+        ],
+        "count": 3,
+        "row_len": 15,
+        "faces": [
+          [
+            393.6,
+            150.7,
+            232.4,
+            270.7,
+            449.6,
+            275.1,
+            555.3,
+            257.2,
+            508.4,
+            325.2,
+            476.2,
+            369.3,
+            568.2,
+            354.4,
+            1.0
+          ],
+          [
+            762.4,
+            -0.5,
+            198.9,
+            229.9,
+            811.3,
+            30.2,
+            857.9,
+            57.0,
+            791.7,
+            93.6,
+            790.6,
+            131.0,
+            823.9,
+            152.8,
+            0.8
+          ],
+          [
+            458.5,
+            520.1,
+            32.9,
+            33.0,
+            464.6,
+            533.9,
+            475.8,
+            533.5,
+            469.9,
+            542.3,
+            470.2,
+            546.5,
+            478.1,
+            545.0,
+            0.7
+          ]
+        ],
+        "row_layout": "x, y, w, h, re_x, re_y, le_x, le_y, nose_x, nose_y, rm_x, rm_y, lm_x, lm_y, score"
+      }
+    },
+    {
+      "id": "yunet.detect.2023mar",
+      "surface": "cv2.FaceDetectorYN.detect",
+      "arguments_exercised": true,
+      "request": {
+        "model": "face_detection_yunet_2023mar.onnx",
+        "cv2": "4.6.0",
+        "nef": "DSC_7989.NEF",
+        "long_edge": 1024
+      },
+      "response": {
+        "error": "OpenCV(4.6.0) D:\\a\\opencv-python\\opencv-python\\opencv\\modules\\dnn\\src\\layers\\eltwise_layer.cpp:251: error: (-215:Assertion failed) inputs[vecIdx][j] == inputs[i"
+      }
+    },
+    {
+      "id": "yunet.detect.size-mismatch",
+      "surface": "cv2.FaceDetectorYN.detect",
+      "arguments_exercised": true,
+      "request": {
+        "model": "face_detection_yunet_2022mar.onnx",
+        "image_shape": [
+          681,
+          1024,
+          3
+        ],
+        "set_input_size": [
+          640,
+          640
+        ]
+      },
+      "response": {
+        "error": ">     'Size(inputW, inputH)' is [640 x 640]"
+      }
+    }
+  ],
+  "silent_ignore": [
+    {
+      "id": "yunet.model.2023mar-on-cv46",
+      "surface": "YuNet model download",
+      "correct_request": {
+        "url": "https://github.com/opencv/opencv_zoo/raw/c97242ce7f/models/face_detection_yunet/face_detection_yunet_2022mar.onnx"
+      },
+      "wrong_request": {
+        "url": "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+      },
+      "responses_identical": false,
+      "impact": "2023mar は OpenCV 4.8+ 専用で 4.6(Windows テスト環境・Ubuntu 24.04 apt)では create/detect が例外になる",
+      "guard": "4.6 互換の 2022mar をコミット固定 URL で取得する。create 失敗は例外で分かるので黙殺はされない"
+    },
+    {
+      "id": "yunet.detect.input-size-mismatch",
+      "surface": "cv2.FaceDetectorYN.detect",
+      "correct_request": {
+        "set_input_size": [
+          1024,
+          681
+        ],
+        "image_shape": [
+          681,
+          1024,
+          3
+        ]
+      },
+      "wrong_request": {
+        "set_input_size": [
+          640,
+          640
+        ],
+        "image_shape": [
+          681,
+          1024,
+          3
+        ]
+      },
+      "responses_identical": false,
+      "impact": "create()/setInputSize の (w,h) が渡す画像と違っても例外にならず、検出 0 件や座標ずれが黙って返る",
+      "guard": "detect 直前に必ず setInputSize((img.shape[1], img.shape[0])) を呼ぶ。テストで size 不一致時の count を assert する"
+    }
+  ]
+}

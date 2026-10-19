@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from pathlib import Path
 from subprocess import CompletedProcess
 
@@ -32,6 +31,7 @@ def _install_previews(monkeypatch, driver, tmp_path, paths, times=None):
 
     monkeypatch.setattr(driver, "make_preview", make_preview)
     monkeypatch.setattr(driver, "capture_time", lambda path: times.get(path))
+    monkeypatch.setattr(driver.shutil, "which", lambda name: "claude.cmd" if name == "claude" else None)
 
 
 def _payload(args, tiles):
@@ -50,7 +50,7 @@ def test_cluster_bursts_uses_supplied_capture_times_without_exiftool(tmp_path, m
     monkeypatch.setattr(cluster_bursts, "_capture_times", lambda _paths: (_ for _ in ()).throw(AssertionError()))
     times = {paths[0]: 10.0, paths[1]: 10.5}
 
-    assert cluster_bursts.cluster_bursts(paths, 1.0, times=times) == [[paths[1], paths[0]]]
+    assert cluster_bursts.cluster_bursts(paths, 1.0, times=times) == [[paths[0], paths[1]]]
 
 
 def test_end_to_end_clusters_reviews_and_writes_only_xmp(monkeypatch, tmp_path, capsys):
@@ -62,6 +62,7 @@ def test_end_to_end_clusters_reviews_and_writes_only_xmp(monkeypatch, tmp_path, 
     prompts = []
     commands = []
     face_calls = []
+    monkeypatch.setattr(driver.quality, "hints", lambda previews: {previews[0]: "sharp focus"})
 
     def run(args, input, **kwargs):
         prompts.append(input)
@@ -85,6 +86,7 @@ def test_end_to_end_clusters_reviews_and_writes_only_xmp(monkeypatch, tmp_path, 
     assert "Selection complete: 1 accepted / 1 rejected" in output
     assert len(prompts) == 1
     assert all(path.name not in prompts[0] for path in paths)
+    assert "Tile 1: sharp focus" in prompts[0]
     assert commands[0][commands[0].index("--allowedTools") + 1] == "Read"
     assert "--json-schema" in commands[0]
     assert len(face_calls) == 1

@@ -1,0 +1,50 @@
+@echo off
+chcp 65001 >nul
+setlocal
+set "STATUS=0"
+
+echo ==============================
+echo   GootPhotoSelector Setup
+echo ==============================
+echo.
+
+where python >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Python 3.9 or newer was not found in PATH.
+    echo Install Python and make sure the python command is available.
+    set "STATUS=1"
+    goto finish
+)
+
+python --version
+if errorlevel 1 (
+    echo [ERROR] Python could not be started.
+    set "STATUS=1"
+    goto finish
+)
+
+where claude >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Claude Code was not found in PATH.
+    echo Install the native Windows version of Claude Code.
+    set "STATUS=1"
+) else (
+    claude --version
+    if errorlevel 1 set "STATUS=1"
+)
+
+echo.
+echo Installing Python dependencies...
+python -m pip install pillow numpy opencv-python-headless
+if errorlevel 1 (
+    echo [ERROR] Python dependency installation failed.
+    set "STATUS=1"
+) else (
+    echo [OK] Python dependencies are ready.
+)
+
+:finish
+echo.
+echo Next: run bin\setup_sendto.bat to add GootPhotoSelector to Send To.
+pause >nul
+exit /b %STATUS%

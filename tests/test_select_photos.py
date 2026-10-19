@@ -258,15 +258,16 @@ def test_contact_sheet_badge_overlays_image_and_three_tiles_use_tight_width(tmp_
     images = []
     for index in range(3):
         path = tmp_path / f"wide_{index}.jpg"
-        Image.new("RGB", (48, 24), (180, 40, 40)).save(path, format="JPEG")
+        Image.new("RGB", (1024, 512), (180, 40, 40)).save(path, format="JPEG")
         images.append(path)
 
-    sheets = driver._make_sheets(images, tmp_path / "sheets", "burst-01", 12, 4, 64)
+    sheets = driver._make_sheets(images, tmp_path / "sheets", "burst-01", 12, 4, 512)
 
     with Image.open(sheets[0][0]) as sheet:
-        assert sheet.size == (3 * 64, 64)
-        red, green, blue = sheet.getpixel((5, 21))
-    assert red > 230 and green > 230 and blue > 230
+        assert sheet.size == (3 * 512, 512)
+        badge = sheet.crop((0, 128, 64, 192))
+        white_pixels = sum(1 for pixel in badge.getdata() if min(pixel) > 230)
+    assert white_pixels > 3000
 
 
 def test_all_contact_sheets_for_a_large_burst_use_one_claude_call(monkeypatch, tmp_path):

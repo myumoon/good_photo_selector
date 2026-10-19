@@ -343,7 +343,6 @@ def main(argv: list[str]) -> int:
                     print(f"Dry run: no preview for {nef.name}; would remain unrated")
             return 0
 
-        completed = set()
         for burst_number, burst in enumerate(bursts, 1):
             try:
                 decisions = _review_burst(burst, burst_number, previews, hints, settings, workspace)
@@ -352,12 +351,10 @@ def main(argv: list[str]) -> int:
                 print(f"warning: burst {burst_number} ({names}) is unrated: {exc}", file=sys.stderr)
                 continue
             _write_burst_labels(burst, decisions, statuses)
-            completed.update(burst)
 
-        for nef in nefs:
+        for index, nef in enumerate(nefs, 1):
             if nef not in previews:
                 print(f"warning: skipped {nef.name}; no preview available", file=sys.stderr)
-            index = nefs.index(nef) + 1
             print(f"[{index}/{len(nefs)}] {nef.name} → {statuses[nef]}")
         accepted_count = sum(status == "accepted" for status in statuses.values())
         rejected_count = sum(status == "rejected" for status in statuses.values())

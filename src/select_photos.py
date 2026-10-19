@@ -14,7 +14,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 import cluster_bursts
 import quality
@@ -158,10 +158,25 @@ def _make_sheets(
     out_dir.mkdir(parents=True, exist_ok=True)
     sheets = []
     resampling = getattr(getattr(Image, "Resampling", Image), "LANCZOS")
+    nearest = getattr(getattr(Image, "Resampling", Image), "NEAREST")
+    badge_size = max(1, tile_px // 8)
+    badge_font = None
+    for font_path in (
+        "DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "arialbd.ttf",
+        "C:/Windows/Fonts/arialbd.ttf",
+    ):
+        try:
+            badge_font = ImageFont.truetype(font_path, max(1, badge_size * 3 // 4))
+            break
+        except OSError:
+            pass
     for start_index in range(0, len(images), max_tiles):
         chunk = images[start_index:start_index + max_tiles]
         rows = int(math.ceil(len(chunk) / float(cols)))
-        canvas = Image.new("RGB", (cols * tile_px, rows * tile_px), "#303030")
+        canvas_width = min(cols, len(chunk)) * tile_px
+        canvas = Image.new("RGB", (canvas_width, rows * tile_px), "#303030")
         draw = ImageDraw.Draw(canvas)
         for offset, image_path in enumerate(chunk):
             with Image.open(image_path) as source:
@@ -169,13 +184,31 @@ def _make_sheets(
                 tile.thumbnail((tile_px, tile_px), resampling)
             x = (offset % cols) * tile_px
             y = (offset // cols) * tile_px
-            canvas.paste(tile, (x + (tile_px - tile.width) // 2, y + (tile_px - tile.height) // 2))
+            image_x = x + (tile_px - tile.width) // 2
+            image_y = y + (tile_px - tile.height) // 2
+            canvas.paste(tile, (image_x, image_y))
             number = start_index + offset + 1
             text = str(number)
-            badge_w = max(18, 8 + len(text) * 8)
-            badge_h = 20
-            draw.rectangle((x + 4, y + 4, x + 4 + badge_w, y + 4 + badge_h), fill="white")
-            draw.text((x + 8, y + 6), text, fill="black")
+            if badge_font is None:
+                small_size = max(1, badge_size // 4)
+                badge = Image.new("RGB", (small_size, small_size), "white")
+                ImageDraw.Draw(badge).text((0, 0), text, fill="black", font=ImageFont.load_default())
+                badge = badge.resize((badge_size, badge_size), nearest)
+                canvas.paste(badge, (image_x, image_y))
+            else:
+                badge_box = (
+                    image_x,
+                    image_y,
+                    image_x + badge_size - 1,
+                    image_y + badge_size - 1,
+                )
+                draw.rectangle(badge_box, fill="white")
+                text_box = badge_font.getbbox(text)
+                text_width = text_box[2] - text_box[0]
+                text_height = text_box[3] - text_box[1]
+                text_x = image_x + (badge_size - text_width) // 2 - text_box[0]
+                text_y = image_y + (badge_size - text_height) // 2 - text_box[1]
+                draw.text((text_x, text_y), text, fill="black", font=badge_font)
         sheet_path = out_dir / f"{prefix}-{len(sheets) + 1:02d}.jpg"
         canvas.save(sheet_path, format="JPEG", quality=90)
         first_tile = start_index + 1

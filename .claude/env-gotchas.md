@@ -10,3 +10,4 @@
 - `settings/*.ini` は gitignore 対象。コミットするのは `settings/config.ini.example` だけ。
 - pytest は `tests/conftest.py` で `sys.path.insert(0, "<repo>/src")` してから `import select_photos` する。
 - PowerShell では `tail` が Git の `tail.exe` に解決され CreateFileMapping エラーで落ちることがある。末尾抽出は `Select-Object -Last N` を使う。
+- PowerShell の `python` は pyenv 3.11.9 で pytest が無い。pytest 実行は事前ブリーフどおり Git Bash の Python 環境を使う。

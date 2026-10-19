@@ -1,0 +1,8 @@
+{
+  "status": "DONE_WITH_CONCERNS",
+  "branch": "feature-select-driver-20261020",
+  "summary": "NEFプレビュー抽出、連写クラスタ、番号付きコンタクトシート、Claude構造化判定、XMP書き込みを行うPythonドライバーを追加。",
+  "intent": "写真フォルダへの副作用をXMPに限定し、Claudeには連写単位のシートと番号を渡して構造化出力だけを使う設計にした。",
+  "notes": "Python 3.9.12 / Pillow 9.0.1でpytest 21件通過、pyflakes通過。実測契約JSONを追加し、実装証跡は .claude/implementation-evidence-1.json。",
+  "concerns": "CLAUDE.mdの既存使い方本文は、事前ブリーフの読取制限に従って削除せず、廃止告知付きの折りたたみ節に残した。完全置換には当該本文の読取許可が必要。"
+}

@@ -26,6 +26,16 @@ else
     echo "[OK] Pillow installed"
 fi
 
+# OpenCV quality hints and face crops (optional at runtime)
+if python3 -c "import cv2, numpy" &>/dev/null; then
+    echo "[OK] OpenCV and NumPy already installed"
+else
+    echo "[install] Installing OpenCV and NumPy..."
+    sudo apt-get update -qq
+    sudo apt-get install -y python3-opencv python3-numpy
+    echo "[OK] OpenCV and NumPy installed"
+fi
+
 echo ""
 echo "=== Setup Complete ==="
 echo "Next: run bin\\setup_sendto.bat on the Windows side"

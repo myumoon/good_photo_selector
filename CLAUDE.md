@@ -103,8 +103,6 @@ Lightroomの `xmpDM:good` フィールドで制御する:
 
 - **exiftool**: WSL 内で `sudo apt install libimage-exiftool-perl` でインストール。Windows の場合は [exiftool.org](https://exiftool.org/) からダウンロードして PATH に配置
   - 用途: NEFからのJPEGプレビュー抽出、XMPの読み取り確認など
-- **ImageMagick**: WSL 内で `sudo apt install imagemagick` でインストール
-  - 用途: 抽出JPEGのリサイズ（トークン削減）
 
 ## サンプルXMP
 
@@ -130,7 +128,7 @@ Lightroomの `xmpDM:good` フィールドで制御する:
 good_photo_selector.bat  ← 「送る」ショートカットのターゲット
   │ Windowsパス → WSLパスに変換
   └→ WSL で good_photo_selector.sh <folder> を起動
-       └→ claude --dangerously-skip-permissions -p "..."
+       └→ python3 src/select_photos.py <folder>
 ```
 
 ### 補足

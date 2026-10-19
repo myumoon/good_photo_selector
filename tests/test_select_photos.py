@@ -32,6 +32,8 @@ def _install_previews(monkeypatch, driver, tmp_path, paths, times=None):
     monkeypatch.setattr(driver, "make_preview", make_preview)
     monkeypatch.setattr(driver, "capture_time", lambda path: times.get(path))
     monkeypatch.setattr(driver.shutil, "which", lambda name: "claude.cmd" if name == "claude" else None)
+    monkeypatch.setattr(driver.quality, "hints", lambda _previews: {})
+    monkeypatch.setattr(driver.quality, "face_crops", lambda *_args: [])
 
 
 def _payload(args, tiles):
@@ -171,10 +173,12 @@ def test_failed_burst_retries_once_and_stays_unrated(monkeypatch, tmp_path, caps
         return CompletedProcess(args, 0, json.dumps({"result": '{"tiles":[]}'}), "")
 
     monkeypatch.setattr(driver.subprocess, "run", run)
-    assert driver.main([str(photo_dir)]) == 0
+    assert driver.main([str(photo_dir)]) == 1
 
     assert len(calls) == 2
-    assert "unrated" in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert "unrated" in captured.out
+    assert "warning: no burst was reviewed" in captured.err
     assert not paths[0].with_suffix(".xmp").exists()
 
 
@@ -301,13 +305,15 @@ def test_settings_read_model_cluster_and_sheet_values(monkeypatch, tmp_path):
     settings.mkdir()
     (settings / "config.ini").write_text(
         "[claude]\nmodel = sonnet\n[cluster]\nburst_gap_seconds = 1.25\n"
-        "[sheet]\ntile_px = 320\ncols = 3\nmax_tiles = 8\n",
+        "[sheet]\ntile_px = 320\ncols = 3\nmax_tiles = 8\n"
+        "[preview]\nlong_edge = 2048\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(driver, "_SETTINGS_DIR", settings)
 
     assert driver._load_settings() == {
         "model": "sonnet", "gap_seconds": 1.25, "tile_px": 320, "cols": 3, "max_tiles": 8,
+        "preview_px": 2048,
     }
 
 
@@ -340,5 +346,151 @@ def test_prompt_files_define_three_label_and_face_schemas():
     assert "40" in burst_prompt
     assert "{sheets}" in burst_prompt and "{count}" in burst_prompt and "{hints}" in burst_prompt
     assert "{sheets}" in face_prompt and "{count}" in face_prompt
+    assert "Read ツール" in burst_prompt.splitlines()[0]
+    assert "Read ツール" in face_prompt.splitlines()[0]
     assert burst_schema["properties"]["tiles"]["items"]["properties"]["label"]["enum"] == ["accept", "reject", "none"]
     assert face_schema["properties"]["tiles"]["items"]["properties"]["ok"]["type"] == "boolean"
+
+
+def test_main_uses_configured_preview_long_edge(monkeypatch, tmp_path):
+    driver = _driver()
+    photo_dir = tmp_path / "photos"
+    paths = _make_nefs(photo_dir, ["DSC_1000.NEF"])
+    runtime = tmp_path / "runtime"
+    long_edges = []
+
+    def make_preview(_nef, out_jpg, long_edge):
+        long_edges.append(long_edge)
+        out_jpg.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (48, 32), "slateblue").save(out_jpg, format="JPEG")
+        return out_jpg
+
+    monkeypatch.setattr(driver, "make_preview", make_preview)
+    monkeypatch.setattr(driver, "capture_time", lambda _path: 1.0)
+    monkeypatch.setattr(driver, "_load_settings", lambda: dict(driver._DEFAULT_SETTINGS, preview_px=1234))
+    monkeypatch.setattr(driver.quality, "hints", lambda _previews: {})
+    monkeypatch.setattr(driver.tempfile, "mkdtemp", lambda prefix: str(runtime))
+
+    assert driver.main([str(photo_dir), "--dry-run"]) == 0
+    assert paths and long_edges == [1234]
+
+
+def test_write_burst_labels_treats_unicode_decode_error_as_unrated(monkeypatch, tmp_path, capsys):
+    driver = _driver()
+    paths = [tmp_path / "first.NEF", tmp_path / "second.NEF"]
+    statuses = {}
+
+    def set_label(path, _accepted):
+        if path == paths[0]:
+            raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+
+    monkeypatch.setattr(driver, "set_label", set_label)
+    driver._write_burst_labels(paths, {1: "accept", 2: "reject"}, statuses)
+
+    assert statuses == {paths[0]: "unrated", paths[1]: "rejected"}
+    assert "could not write XMP" in capsys.readouterr().err
+
+
+def test_main_returns_one_when_every_burst_response_is_unstructured(monkeypatch, tmp_path, capsys):
+    driver = _driver()
+    photo_dir = tmp_path / "photos"
+    _make_nefs(photo_dir, ["DSC_1001.NEF"])
+    _install_previews(monkeypatch, driver, tmp_path, [])
+    calls = []
+
+    def unstructured_run(args, **kwargs):
+        calls.append(args)
+        return CompletedProcess(args, 0, json.dumps({"result": '{"tiles":[]}'}), "")
+
+    monkeypatch.setattr(driver.subprocess, "run", unstructured_run)
+
+    assert driver.main([str(photo_dir)]) == 1
+    captured = capsys.readouterr()
+    assert len(calls) == 2
+    assert "Selection complete" in captured.out
+    assert "warning: no burst was reviewed" in captured.err
+
+
+def test_main_returns_zero_when_only_some_bursts_fail(monkeypatch, tmp_path, capsys):
+    driver = _driver()
+    photo_dir = tmp_path / "photos"
+    paths = _make_nefs(photo_dir, ["DSC_1002.NEF", "DSC_1003.NEF"])
+    _install_previews(monkeypatch, driver, tmp_path, paths)
+    monkeypatch.setattr(
+        driver.cluster_bursts,
+        "cluster_bursts",
+        lambda selected, *_args, **_kwargs: [[selected[0]], [selected[1]]],
+    )
+    calls = []
+
+    def review_one_burst(args, **kwargs):
+        calls.append(args)
+        if len(calls) == 1:
+            return CompletedProcess(args, 0, _payload(args, [(1, "accept")]), "")
+        return CompletedProcess(args, 0, json.dumps({"result": '{"tiles":[]}'}), "")
+
+    monkeypatch.setattr(driver.subprocess, "run", review_one_burst)
+
+    assert driver.main([str(photo_dir)]) == 0
+    captured = capsys.readouterr()
+    assert len(calls) == 3
+    assert paths[0].with_suffix(".xmp").exists()
+    assert "warning: no burst was reviewed" not in captured.err
+
+
+def test_claude_response_with_fewer_than_two_turns_warns(monkeypatch, tmp_path, capsys):
+    driver = _driver()
+    monkeypatch.setattr(driver.shutil, "which", lambda _name: "claude")
+
+    def one_turn(args, **kwargs):
+        return CompletedProcess(args, 0, json.dumps({"structured_output": {"tiles": []}, "num_turns": 1}), "")
+
+    monkeypatch.setattr(driver.subprocess, "run", one_turn)
+
+    assert driver._call_claude("prompt", {"type": "object"}, "opus") == {"tiles": []}
+    assert "num_turns" in capsys.readouterr().err
+
+
+def test_three_digit_fallback_badge_has_room_for_full_text(monkeypatch, tmp_path):
+    driver = _driver()
+    image = tmp_path / "tile.jpg"
+    Image.new("RGB", (256, 256), (180, 40, 40)).save(image, format="JPEG")
+
+    original_truetype = driver.ImageFont.truetype
+    original_load_default = driver.ImageFont.load_default
+
+    def no_ttf(font, *args, **kwargs):
+        if isinstance(font, str):
+            raise OSError("no TrueType font")
+        return original_truetype(font, *args, **kwargs)
+
+    class FontWithoutGetSize:
+        def __init__(self, font):
+            self.font = font
+
+        def __getattr__(self, name):
+            if name == "getsize":
+                raise AttributeError(name)
+            return getattr(self.font, name)
+
+    monkeypatch.setattr(driver.ImageFont, "truetype", no_ttf)
+    monkeypatch.setattr(
+        driver.ImageFont, "load_default",
+        lambda: FontWithoutGetSize(original_load_default()),
+    )
+    sheets = driver._make_sheets([image] * 123, tmp_path / "sheets", "burst-01", 12, 4, 256)
+
+    with Image.open(sheets[-1][0]) as sheet:
+        assert sheet.getpixel((512 + 48, 16))[0] > 230
+
+
+def test_hints_are_computed_per_burst(monkeypatch, tmp_path):
+    driver = _driver()
+    photo_dir = tmp_path / "photos"
+    paths = _make_nefs(photo_dir, ["DSC_2001.NEF", "DSC_2002.NEF"])
+    _install_previews(monkeypatch, driver, tmp_path, paths, {paths[0]: 1.0, paths[1]: 10.0})
+    hint_calls = []
+    monkeypatch.setattr(driver.quality, "hints", lambda previews: hint_calls.append(list(previews)) or {})
+
+    assert driver.main([str(photo_dir), "--dry-run"]) == 0
+    assert [len(previews) for previews in hint_calls] == [1, 1]

@@ -31,6 +31,7 @@ _DEFAULT_SETTINGS = {
     "tile_px": 512,
     "cols": 4,
     "max_tiles": 12,
+    "preview_px": 1600,
 }
 _SETTING_SOURCES = {
     "model": ("claude", "model", str),
@@ -38,6 +39,7 @@ _SETTING_SOURCES = {
     "tile_px": ("sheet", "tile_px", int),
     "cols": ("sheet", "cols", int),
     "max_tiles": ("sheet", "max_tiles", int),
+    "preview_px": ("preview", "long_edge", int),
 }
 _CLAUDE_TIMEOUT_SECONDS = 180
 
@@ -106,6 +108,8 @@ def _call_claude(prompt: str, schema: dict[str, Any], model: str) -> dict[str, A
             structured = payload.get("structured_output") if isinstance(payload, dict) else None
             if not isinstance(structured, dict) or not isinstance(structured.get("tiles"), list):
                 raise ValueError("claude response has no structured_output.tiles")
+            if type(payload.get("num_turns")) is int and payload["num_turns"] < 2:
+                print("warning: Claude may not have read the images (num_turns < 2)", file=sys.stderr)
             return structured
         except Exception as exc:
             print(f"warning: Claude call {attempt + 1}/2 failed: {exc}", file=sys.stderr)
@@ -190,10 +194,17 @@ def _make_sheets(
             number = start_index + offset + 1
             text = str(number)
             if badge_font is None:
-                small_size = max(1, badge_size // 4)
-                badge = Image.new("RGB", (small_size, small_size), "white")
-                ImageDraw.Draw(badge).text((0, 0), text, fill="black", font=ImageFont.load_default())
-                badge = badge.resize((badge_size, badge_size), nearest)
+                font = ImageFont.load_default()
+                text_box = font.getbbox(text) if hasattr(font, "getbbox") else (0, 0, *font.getmask(text).size)
+                text_width = text_box[2] - text_box[0]
+                text_height = text_box[3] - text_box[1]
+                text_position = (1 - text_box[0], 1 - text_box[1])
+                text_width = max(1, text_width)
+                text_height = max(1, text_height)
+                badge = Image.new("RGB", (text_width + 2, text_height + 2), "white")
+                ImageDraw.Draw(badge).text(text_position, text, fill="black", font=font)
+                badge_width = max(1, int(round(badge_size * badge.width / badge.height)))
+                badge = badge.resize((badge_width, badge_size), nearest)
                 canvas.paste(badge, (image_x, image_y))
             else:
                 badge_box = (
@@ -250,7 +261,7 @@ def _write_burst_labels(
         accepted = True if label == "accept" else False if label == "reject" else None
         try:
             set_label(nef, accepted)
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             print(f"warning: could not write XMP for {nef.name}: {exc}", file=sys.stderr)
             statuses[nef] = "unrated"
             continue
@@ -339,7 +350,7 @@ def main(argv: list[str]) -> int:
         previews = {}
         capture_times = {}
         for index, nef in enumerate(nefs, 1):
-            preview = make_preview(nef, workspace / "previews" / f"preview-{index:04d}.jpg", settings["tile_px"])
+            preview = make_preview(nef, workspace / "previews" / f"preview-{index:04d}.jpg", settings["preview_px"])
             if preview is None:
                 continue
             previews[nef] = preview
@@ -347,15 +358,15 @@ def main(argv: list[str]) -> int:
             if timestamp is not None:
                 capture_times[nef] = timestamp
 
-        preview_paths = list(previews.values())
-        try:
-            hints = quality.hints(preview_paths)
-        except Exception as exc:
-            print(f"warning: quality hints unavailable: {exc}", file=sys.stderr)
-            hints = {}
         bursts = cluster_bursts.cluster_bursts(
             list(previews), settings["gap_seconds"], times=capture_times,
         )
+        hints = {}
+        for burst in bursts:
+            try:
+                hints.update(quality.hints([previews[nef] for nef in burst]))
+            except Exception as exc:
+                print(f"warning: quality hints unavailable: {exc}", file=sys.stderr)
 
         if args.dry_run:
             for burst_number, burst in enumerate(bursts, 1):
@@ -376,6 +387,7 @@ def main(argv: list[str]) -> int:
                     print(f"Dry run: no preview for {nef.name}; would remain unrated")
             return 0
 
+        reviewed_any = False
         for burst_number, burst in enumerate(bursts, 1):
             try:
                 decisions = _review_burst(burst, burst_number, previews, hints, settings, workspace)
@@ -383,6 +395,7 @@ def main(argv: list[str]) -> int:
                 names = ", ".join(nef.name for nef in burst)
                 print(f"warning: burst {burst_number} ({names}) is unrated: {exc}", file=sys.stderr)
                 continue
+            reviewed_any = True
             _write_burst_labels(burst, decisions, statuses)
 
         for index, nef in enumerate(nefs, 1):
@@ -392,6 +405,9 @@ def main(argv: list[str]) -> int:
         accepted_count = sum(status == "accepted" for status in statuses.values())
         rejected_count = sum(status == "rejected" for status in statuses.values())
         print(f"Selection complete: {accepted_count} accepted / {rejected_count} rejected")
+        if bursts and not reviewed_any:
+            print("warning: no burst was reviewed", file=sys.stderr)
+            return 1
         return 0
     finally:
         if args.keep_previews:

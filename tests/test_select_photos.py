@@ -173,10 +173,12 @@ def test_failed_burst_retries_once_and_stays_unrated(monkeypatch, tmp_path, caps
         return CompletedProcess(args, 0, json.dumps({"result": '{"tiles":[]}'}), "")
 
     monkeypatch.setattr(driver.subprocess, "run", run)
-    assert driver.main([str(photo_dir)]) == 0
+    assert driver.main([str(photo_dir)]) == 1
 
     assert len(calls) == 2
-    assert "unrated" in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert "unrated" in captured.out
+    assert "warning: no burst was reviewed" in captured.err
     assert not paths[0].with_suffix(".xmp").exists()
 
 
@@ -389,19 +391,22 @@ def test_write_burst_labels_treats_unicode_decode_error_as_unrated(monkeypatch, 
     assert "could not write XMP" in capsys.readouterr().err
 
 
-def test_main_returns_one_when_every_burst_review_fails(monkeypatch, tmp_path, capsys):
+def test_main_returns_one_when_every_burst_response_is_unstructured(monkeypatch, tmp_path, capsys):
     driver = _driver()
     photo_dir = tmp_path / "photos"
     _make_nefs(photo_dir, ["DSC_1001.NEF"])
     _install_previews(monkeypatch, driver, tmp_path, [])
+    calls = []
 
-    def failed_run(args, **kwargs):
-        return CompletedProcess(args, 1, "", "failed")
+    def unstructured_run(args, **kwargs):
+        calls.append(args)
+        return CompletedProcess(args, 0, json.dumps({"result": '{"tiles":[]}'}), "")
 
-    monkeypatch.setattr(driver.subprocess, "run", failed_run)
+    monkeypatch.setattr(driver.subprocess, "run", unstructured_run)
 
     assert driver.main([str(photo_dir)]) == 1
     captured = capsys.readouterr()
+    assert len(calls) == 2
     assert "Selection complete" in captured.out
     assert "warning: no burst was reviewed" in captured.err
 
@@ -424,10 +429,28 @@ def test_three_digit_fallback_badge_has_room_for_full_text(monkeypatch, tmp_path
     image = tmp_path / "tile.jpg"
     Image.new("RGB", (256, 256), (180, 40, 40)).save(image, format="JPEG")
 
-    def no_ttf(*_args, **_kwargs):
-        raise OSError("no TrueType font")
+    original_truetype = driver.ImageFont.truetype
+    original_load_default = driver.ImageFont.load_default
+
+    def no_ttf(font, *args, **kwargs):
+        if isinstance(font, str):
+            raise OSError("no TrueType font")
+        return original_truetype(font, *args, **kwargs)
+
+    class FontWithoutGetSize:
+        def __init__(self, font):
+            self.font = font
+
+        def __getattr__(self, name):
+            if name == "getsize":
+                raise AttributeError(name)
+            return getattr(self.font, name)
 
     monkeypatch.setattr(driver.ImageFont, "truetype", no_ttf)
+    monkeypatch.setattr(
+        driver.ImageFont, "load_default",
+        lambda: FontWithoutGetSize(original_load_default()),
+    )
     sheets = driver._make_sheets([image] * 123, tmp_path / "sheets", "burst-01", 12, 4, 256)
 
     with Image.open(sheets[-1][0]) as sheet:

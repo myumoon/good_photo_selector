@@ -8,3 +8,9 @@ burst_gap_seconds = 2.0
 tile_px = 512
 cols = 4
 max_tiles = 12
+
+[preview]
+long_edge = 1600
+
+[face]
+crop_px = 384

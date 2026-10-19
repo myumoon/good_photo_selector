@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "iteration": 2,
+  "contract_coverage": [
+    {
+      "contract_id": "M1",
+      "status": "PASS",
+      "evidence_paths": ["src/quality.py", "contracts/yunet.contract.json"],
+      "tests": ["test_hints_use_largest_face_and_mark_images_without_faces", "test_detect_size_mismatch_exception_returns_empty_result"],
+      "counterexample": "A preview with no detected faces receives the no-face hint; a detect size mismatch returns an empty hint map.",
+      "siblings": ["quality.hints: all previews in a burst use the same cached runtime and detector"]
+    },
+    {
+      "contract_id": "M2",
+      "status": "PASS",
+      "evidence_paths": ["src/quality.py"],
+      "tests": ["test_face_crops_filters_sorts_limits_and_resizes", "test_face_crops_returns_empty_when_no_faces", "test_opencv_missing_skips_both_quality_features_and_warns_once"],
+      "counterexample": "Faces below 0.6 are excluded, results are capped at three, and no-face or unavailable-runtime calls return an empty list.",
+      "siblings": ["quality.face_crops: candidate filtering, area ordering, crop bounds, resizing, and output cleanup"]
+    },
+    {
+      "contract_id": "M3",
+      "status": "PASS",
+      "evidence_paths": ["src/quality.py", "contracts/yunet.contract.json"],
+      "tests": ["test_download_uses_contract_url_and_exact_size", "test_wrong_model_size_is_deleted_and_not_used", "test_runtime_caches_detector_across_hints_and_face_crops"],
+      "counterexample": "The contract URL is fetched with timeout 30; a wrong-sized body is deleted and never passed to YuNet.",
+      "siblings": ["quality.hints -> _runtime -> _ensure_model", "quality.face_crops -> _runtime -> _ensure_model", "_read_and_detect calls setInputSize before detect"]
+    },
+    {
+      "contract_id": "M4",
+      "status": "PASS",
+      "evidence_paths": ["src/select_photos.py", "src/nef_preview.py", "settings/config.ini.example"],
+      "tests": ["test_main_uses_configured_preview_long_edge", "test_contact_sheet_badge_overlays_image_and_three_tiles_use_tight_width", "test_settings_read_model_cluster_and_sheet_values"],
+      "counterexample": "The configured long edge is passed to preview extraction and oversized previews are reduced to contact-sheet tile dimensions.",
+      "siblings": ["main preview extraction path", "_make_sheets tile thumbnail path", "preview.long_edge and face.crop_px example settings"]
+    },
+    {
+      "contract_id": "M8",
+      "status": "PASS",
+      "evidence_paths": ["src/nef_preview.py", "src/select_photos.py", "src/prompts/burst_review.md", "src/prompts/face_check.md", "README.md", "CLAUDE.md", "tests/test_nef_preview.py", "tests/test_select_photos.py"],
+      "tests": ["test_make_preview_applies_nef_orientation_without_jpeg_exif", "test_write_burst_labels_treats_unicode_decode_error_as_unrated", "test_main_returns_one_when_every_burst_response_is_unstructured", "test_main_returns_zero_when_only_some_bursts_fail", "test_claude_response_with_fewer_than_two_turns_warns", "test_prompt_files_define_three_label_and_face_schemas", "test_three_digit_fallback_badge_has_room_for_full_text"],
+      "counterexample": "Orientation 6 without JPEG EXIF is rotated; UnicodeDecodeError is isolated; repeated returncode-0 malformed responses return 1; a partial review returns 0; the 123 badge renders with a getsize-less font shim.",
+      "siblings": ["make_preview orientation and draft decode", "_write_burst_labels per-photo OSError/ValueError handling", "main all-failed and partial-success burst aggregation", "both prompt files and Claude num_turns warning", "CLAUDE/README workflow text", "installed-font and bitmap badge sizing paths"]
+    },
+    {
+      "contract_id": "M5",
+      "status": "PASS",
+      "evidence_paths": ["bin/setup.sh", "README.md", "tests/test_quality.py"],
+      "tests": ["test_opencv_missing_skips_both_quality_features_and_warns_once", "test_model_download_failure_returns_empty_results_and_warns_once"],
+      "counterexample": "When OpenCV or the model is unavailable, optional quality features skip cleanly and emit one warning.",
+      "siblings": ["setup.sh apt package installation", "README optional OpenCV setup note"]
+    },
+    {
+      "contract_id": "M6",
+      "status": "PASS",
+      "evidence_paths": ["tests/test_quality.py", "contracts/yunet.contract.json", "src/quality.py"],
+      "tests": ["test_hints_use_largest_face_and_mark_images_without_faces", "test_opencv_missing_skips_both_quality_features_and_warns_once", "test_model_download_failure_returns_empty_results_and_warns_once", "test_download_uses_contract_url_and_exact_size", "test_wrong_model_size_is_deleted_and_not_used", "test_yunet_initialization_and_detection_errors_fail_open", "test_detect_size_mismatch_exception_returns_empty_result"],
+      "counterexample": "Contract URL and byte size are asserted; missing cv2, download failure, wrong size, initialization failure, and detect input-size mismatch are exercised without real photos or network access.",
+      "siblings": ["hints failure handling", "face_crops failure handling", "model download and detector creation shared by both entry points"]
+    },
+    {
+      "contract_id": "M7",
+      "status": "PASS",
+      "evidence_paths": [".claude/result-review-1.json", "src/select_photos.py", "tests/test_select_photos.py"],
+      "tests": ["test_main_uses_configured_preview_long_edge"],
+      "counterexample": "The previous review records M7 as PASS; the configured-long-edge regression test also verifies the preview call path.",
+      "siblings": ["main preview extraction", "quality hints on generated preview paths"]
+    },
+    {
+      "contract_id": "I1",
+      "status": "PASS",
+      "evidence_paths": ["src/quality.py", "src/select_photos.py"],
+      "tests": ["test_opencv_missing_skips_both_quality_features_and_warns_once", "python -c import select_photos"],
+      "counterexample": "Importing select_photos succeeds with cv2 unavailable; cv2 and numpy imports remain inside _runtime.",
+      "siblings": ["quality.hints", "quality.face_crops", "select_photos module import and quality call sites"]
+    },
+    {
+      "contract_id": "I2",
+      "status": "PASS",
+      "evidence_paths": ["src/quality.py", "src/select_photos.py", "tests/test_quality.py", "tests/test_select_photos.py"],
+      "tests": ["test_download_uses_contract_url_and_exact_size", "test_dry_run_builds_sheets_without_claude_or_xmp"],
+      "counterexample": "The model path is repository-root models/; model-download tests isolate it under tmp_path and dry-run leaves the source photo folder without generated previews or labels.",
+      "siblings": ["model cache path", "preview/sheet/face output paths under temporary workspace", "XMP label path"]
+    },
+    {
+      "contract_id": "I3",
+      "status": "PASS",
+      "evidence_paths": ["src/quality.py", "src/select_photos.py", ".claude/env-gotchas.md"],
+      "tests": ["python -m pytest -q tests"],
+      "counterexample": "The full suite ran on Python 3.9.12; no Python 3.10-only syntax was introduced.",
+      "siblings": ["src/quality.py runtime/cache code", "src/select_photos.py badge and retry code"]
+    },
+    {
+      "contract_id": "I4",
+      "status": "PASS",
+      "evidence_paths": ["src/quality.py", "tests/test_quality.py"],
+      "tests": ["test_opencv_missing_skips_both_quality_features_and_warns_once", "test_model_download_failure_returns_empty_results_and_warns_once", "test_wrong_model_size_is_deleted_and_not_used", "test_yunet_initialization_and_detection_errors_fail_open", "test_detect_size_mismatch_exception_returns_empty_result", "test_runtime_caches_detector_across_hints_and_face_crops"],
+      "counterexample": "Import, download, size, initialization, and detect failures return {} or []; repeated download failure attempts only one request and repeated success creates one detector.",
+      "siblings": ["quality.hints broad fail-open path", "quality.face_crops broad fail-open path", "_runtime unavailable and success caches"]
+    }
+  ],
+  "verification_runs": [
+    {
+      "command": "python -m pytest -q tests | tail -5",
+      "exit_code": 0,
+      "output_tail": "........................................ [100%]\n40 passed in 0.71s",
+      "baseline_tests": 22,
+      "environment": "Python 3.9.12 (Anaconda); PowerShell used Select-Object -Last 5 because tail.exe cannot run in this sandbox."
+    },
+    {
+      "command": "python -m pyflakes src tests | tail -20",
+      "exit_code": 0,
+      "output_tail": "",
+      "environment": "PowerShell Select-Object -Last 20 equivalent; command produced no diagnostics."
+    },
+    {
+      "command": "python -c \"import sys; sys.path.insert(0,'src'); import select_photos\" && echo import-ok",
+      "exit_code": 0,
+      "output_tail": "import-ok",
+      "environment": "PowerShell conditional Write-Output used after the same import command."
+    },
+    {
+      "command": "python -m pytest -q tests/test_quality.py (before runtime fix)",
+      "exit_code": 1,
+      "output_tail": "4 failed, 6 passed in 0.34s"
+    },
+    {
+      "command": "python -m pytest -q tests/test_select_photos.py (before driver fix)",
+      "exit_code": 1,
+      "output_tail": "3 failed, 18 passed in 0.43s"
+    },
+    {
+      "command": "python -m pytest -q tests/test_quality.py (after runtime fix)",
+      "exit_code": 0,
+      "output_tail": "10 passed in 0.20s"
+    },
+    {
+      "command": "python -m pytest -q tests/test_select_photos.py (after driver fix)",
+      "exit_code": 0,
+      "output_tail": "21 passed in 0.47s"
+    },
+    {
+      "command": "python -m pytest -q tests/test_select_photos.py::test_main_returns_zero_when_only_some_bursts_fail",
+      "exit_code": 0,
+      "output_tail": "1 passed in 0.14s"
+    }
+  ]
+}

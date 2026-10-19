@@ -130,6 +130,12 @@ def make_preview(nef: Path, out_jpg: Path, long_edge: int) -> Path | None:
     """Extract and resize one NEF preview, returning None after a per-file warning."""
     if long_edge <= 0:
         raise ValueError("long_edge must be a positive integer")
+    orientation = None
+    try:
+        with Image.open(nef) as source:
+            orientation = source.getexif().get(274)
+    except (OSError, ValueError, TypeError):
+        pass
     jpeg = extract_embedded_jpeg(nef)
     if jpeg is None:
         jpeg = _exiftool_preview(Path(nef))
@@ -137,6 +143,11 @@ def make_preview(nef: Path, out_jpg: Path, long_edge: int) -> Path | None:
         return None
     try:
         with Image.open(BytesIO(jpeg)) as embedded:
+            embedded.draft("RGB", (long_edge, long_edge))
+            if orientation is not None:
+                exif = embedded.getexif()
+                exif[274] = orientation
+                embedded.info["exif"] = exif.tobytes()
             preview = ImageOps.exif_transpose(embedded).convert("RGB")
             resampling = getattr(getattr(Image, "Resampling", Image), "LANCZOS")
             preview.thumbnail((long_edge, long_edge), resampling)

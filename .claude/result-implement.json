@@ -1,0 +1,7 @@
+{
+  "status": "DONE",
+  "branch": "feature-sendto-windows-native-20261020",
+  "summary": "Send To を Windows ネイティブ実行へ切り替え、Windows 用セットアップと README/CLAUDE.md を更新。",
+  "intent": "WSL を介さず、Windows の Python とネイティブ Claude Code で写真選別を実行するため。",
+  "notes": "pytest 40件（基準40）。.env/test が無いため --help で M4 を代替確認。setup.bat の pip 正常系と実在する日本語・空白パスは未実行。Python 未検出時の案内は確認済み。"
+}

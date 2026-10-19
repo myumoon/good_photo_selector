@@ -182,7 +182,12 @@ def test_wrong_model_size_is_deleted_and_not_used(monkeypatch, tmp_path):
     model_path = tmp_path / "models" / "face_detection_yunet_2022mar.onnx"
     image = np.zeros((8, 10, 3), dtype=np.uint8)
     calls = _install_cv(monkeypatch, tmp_path, [None], {str(preview): image})
-    monkeypatch.setattr(urllib.request, "urlretrieve", lambda _url, path: Path(path).write_bytes(b"bad"))
+
+    def write_wrong_size(url, destination):
+        calls["downloads"].append(url)
+        Path(destination).write_bytes(b"bad")
+
+    monkeypatch.setattr(urllib.request, "urlretrieve", write_wrong_size)
 
     assert quality.hints([preview]) == {}
     assert calls["downloads"]
@@ -203,3 +208,18 @@ def test_yunet_initialization_and_detection_errors_fail_open(monkeypatch, tmp_pa
 
     assert quality.hints([preview]) == {}
     assert calls["create"]
+
+
+def test_detect_size_mismatch_exception_returns_empty_result(monkeypatch, tmp_path):
+    preview = tmp_path / "preview.jpg"
+    image = np.zeros((8, 10, 3), dtype=np.uint8)
+    calls = _install_cv(
+        monkeypatch,
+        tmp_path,
+        [None],
+        {str(preview): image},
+        detect_error=RuntimeError("input-size mismatch"),
+    )
+
+    assert quality.hints([preview]) == {}
+    assert calls["sizes"] == [(10, 8)]

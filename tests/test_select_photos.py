@@ -53,6 +53,17 @@ def test_cluster_bursts_uses_supplied_capture_times_without_exiftool(tmp_path, m
     assert cluster_bursts.cluster_bursts(paths, 1.0, times=times) == [[paths[0], paths[1]]]
 
 
+def test_cluster_bursts_keeps_capture_time_lookup_when_times_are_omitted(tmp_path, monkeypatch):
+    import cluster_bursts
+
+    paths = [tmp_path / "DSC_1.NEF", tmp_path / "DSC_2.NEF"]
+    calls = []
+    monkeypatch.setattr(cluster_bursts, "_capture_times", lambda selected: calls.append(selected) or {paths[0]: 10.0})
+
+    assert cluster_bursts.cluster_bursts(paths, 1.0) == [[paths[0]], [paths[1]]]
+    assert calls == [paths]
+
+
 def test_end_to_end_clusters_reviews_and_writes_only_xmp(monkeypatch, tmp_path, capsys):
     driver = _driver()
     photo_dir = tmp_path / "photos"
@@ -96,6 +107,28 @@ def test_end_to_end_clusters_reviews_and_writes_only_xmp(monkeypatch, tmp_path, 
         "DSC_0001.NEF", "DSC_0002.NEF", "DSC_0001.xmp", "DSC_0002.xmp",
     }
     assert not runtime.exists()
+
+
+def test_end_to_end_accepts_explicit_nef_paths(monkeypatch, tmp_path, capsys):
+    driver = _driver()
+    photo_dir = tmp_path / "photos"
+    paths = _make_nefs(photo_dir, ["DSC_0001.NEF", "DSC_0002.NEF"])
+    times = {path: 100.0 for path in paths}
+    _install_previews(monkeypatch, driver, tmp_path, paths, times)
+    prompts = []
+
+    def run(args, input, **kwargs):
+        prompts.append(input)
+        return CompletedProcess(args, 0, _payload(args, [(1, "reject"), (2, "none")]), "")
+
+    monkeypatch.setattr(driver.subprocess, "run", run)
+
+    assert driver.main([str(paths[1]), str(paths[0])]) == 0
+
+    output = capsys.readouterr().out
+    assert "[1/2] DSC_0002.NEF → accepted" in output
+    assert "[2/2] DSC_0001.NEF → rejected" in output
+    assert len(prompts) == 1
 
 
 def test_dry_run_builds_sheets_without_claude_or_xmp(monkeypatch, tmp_path, capsys):
@@ -143,6 +176,26 @@ def test_failed_burst_retries_once_and_stays_unrated(monkeypatch, tmp_path, caps
     assert len(calls) == 2
     assert "unrated" in capsys.readouterr().out
     assert not paths[0].with_suffix(".xmp").exists()
+
+
+def test_timed_out_claude_call_retries_once(monkeypatch, tmp_path):
+    driver = _driver()
+    photo_dir = tmp_path / "photos"
+    paths = _make_nefs(photo_dir, ["DSC_0035.NEF"])
+    _install_previews(monkeypatch, driver, tmp_path, paths)
+    calls = []
+
+    def run(args, **kwargs):
+        calls.append(args)
+        if len(calls) == 1:
+            raise driver.subprocess.TimeoutExpired(args, 180)
+        return CompletedProcess(args, 0, _payload(args, [(1, "accept")]), "")
+
+    monkeypatch.setattr(driver.subprocess, "run", run)
+
+    assert driver.main([str(photo_dir)]) == 0
+    assert len(calls) == 2
+    assert paths[0].with_suffix(".xmp").exists()
 
 
 def test_face_check_can_reject_a_photo(monkeypatch, tmp_path):

@@ -13,3 +13,4 @@
 - PowerShell の `python` は pyenv 3.11.9 で pytest が無い。pytest 実行は事前ブリーフどおり Git Bash の Python 環境を使う。
 - この実行環境では Git Bash 自体も `CreateFileMapping ... Win32 error 5` で起動できない。PowerShell から利用可能な pytest 付き Python を探す。
 - pytest の既定一時領域 `C:\Users\neko\AppData\Local\Temp` は sandbox が拒否する。実行時の `TEMP` と `TMP` を worktree 内へ向ける。
+- 実環境の Pillow 9.0.1 では `Image.Resampling` が未提供。縮小処理は `Image.LANCZOS` fallback も用意する。

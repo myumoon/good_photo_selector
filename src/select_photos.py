@@ -172,11 +172,10 @@ def _make_sheets(
             canvas.paste(tile, (x + (tile_px - tile.width) // 2, y + (tile_px - tile.height) // 2))
             number = start_index + offset + 1
             text = str(number)
-            bounds = draw.textbbox((0, 0), text)
-            badge_w = bounds[2] - bounds[0] + 10
-            badge_h = bounds[3] - bounds[1] + 8
+            badge_w = max(18, 8 + len(text) * 8)
+            badge_h = 20
             draw.rectangle((x + 4, y + 4, x + 4 + badge_w, y + 4 + badge_h), fill="white")
-            draw.text((x + 9, y + 7), text, fill="black")
+            draw.text((x + 8, y + 6), text, fill="black")
         sheet_path = out_dir / f"{prefix}-{len(sheets) + 1:02d}.jpg"
         canvas.save(sheet_path, format="JPEG", quality=90)
         first_tile = start_index + 1

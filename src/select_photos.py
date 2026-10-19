@@ -359,15 +359,15 @@ def main(argv: list[str]) -> int:
             if timestamp is not None:
                 capture_times[nef] = timestamp
 
-        preview_paths = list(previews.values())
-        try:
-            hints = quality.hints(preview_paths)
-        except Exception as exc:
-            print(f"warning: quality hints unavailable: {exc}", file=sys.stderr)
-            hints = {}
         bursts = cluster_bursts.cluster_bursts(
             list(previews), settings["gap_seconds"], times=capture_times,
         )
+        hints = {}
+        for burst in bursts:
+            try:
+                hints.update(quality.hints([previews[nef] for nef in burst]))
+            except Exception as exc:
+                print(f"warning: quality hints unavailable: {exc}", file=sys.stderr)
 
         if args.dry_run:
             for burst_number, burst in enumerate(bursts, 1):

@@ -1,7 +1,0 @@
-{
-  "status": "DONE",
-  "branch": "feature-quality-opencv-20261020",
-  "summary": "Pillow 9/10 のバッジ表示を修正し、全連写失敗の終了コードを1に統一。OpenCV runtime をキャッシュし、モデル取得を30秒で打ち切る。",
-  "intent": "不正なClaude応答や任意依存の欠落を成功扱いせず、検出器の再生成とネットワーク待ちを抑えるため。",
-  "notes": "pytest 40 passed（ベースライン22件）。pyflakes と import 確認も成功。証跡: .claude/implementation-evidence-2.json、修正ledger: .claude/resolution-ledger-2.json。"
-}

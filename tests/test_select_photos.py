@@ -411,6 +411,33 @@ def test_main_returns_one_when_every_burst_response_is_unstructured(monkeypatch,
     assert "warning: no burst was reviewed" in captured.err
 
 
+def test_main_returns_zero_when_only_some_bursts_fail(monkeypatch, tmp_path, capsys):
+    driver = _driver()
+    photo_dir = tmp_path / "photos"
+    paths = _make_nefs(photo_dir, ["DSC_1002.NEF", "DSC_1003.NEF"])
+    _install_previews(monkeypatch, driver, tmp_path, paths)
+    monkeypatch.setattr(
+        driver.cluster_bursts,
+        "cluster_bursts",
+        lambda selected, *_args, **_kwargs: [[selected[0]], [selected[1]]],
+    )
+    calls = []
+
+    def review_one_burst(args, **kwargs):
+        calls.append(args)
+        if len(calls) == 1:
+            return CompletedProcess(args, 0, _payload(args, [(1, "accept")]), "")
+        return CompletedProcess(args, 0, json.dumps({"result": '{"tiles":[]}'}), "")
+
+    monkeypatch.setattr(driver.subprocess, "run", review_one_burst)
+
+    assert driver.main([str(photo_dir)]) == 0
+    captured = capsys.readouterr()
+    assert len(calls) == 3
+    assert paths[0].with_suffix(".xmp").exists()
+    assert "warning: no burst was reviewed" not in captured.err
+
+
 def test_claude_response_with_fewer_than_two_turns_warns(monkeypatch, tmp_path, capsys):
     driver = _driver()
     monkeypatch.setattr(driver.shutil, "which", lambda _name: "claude")

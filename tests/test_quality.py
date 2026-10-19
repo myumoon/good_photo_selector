@@ -22,6 +22,8 @@ def _face(x, y, width, height, score):
 @pytest.fixture(autouse=True)
 def reset_warning_state(monkeypatch):
     monkeypatch.setattr(quality, "_WARNED", False, raising=False)
+    monkeypatch.setattr(quality, "_RUNTIME", None, raising=False)
+    monkeypatch.setattr(quality, "_UNAVAILABLE", None, raising=False)
 
 
 def _install_cv(monkeypatch, tmp_path, faces, images=None, download_error=None, create_error=None,
@@ -30,15 +32,36 @@ def _install_cv(monkeypatch, tmp_path, faces, images=None, download_error=None, 
     expected_size = probe["response"]["bytes"]
     model_path = tmp_path / "models" / "face_detection_yunet_2022mar.onnx"
     monkeypatch.setattr(quality, "_MODEL_PATH", model_path, raising=False)
-    calls = {"downloads": [], "sizes": [], "laplacian_shapes": [], "writes": []}
+    calls = {"downloads": [], "sizes": [], "laplacian_shapes": [], "writes": [], "creates": 0}
     detector_calls = {"index": 0}
 
-    def urlretrieve(url, destination):
+    class Response:
+        def __init__(self, content):
+            self.content = content
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return self.content
+
+    def urlopen(url, timeout=None):
         calls["downloads"].append(url)
-        calls["destination"] = Path(destination)
+        calls["timeout"] = timeout
         if download_error:
             raise download_error
-        Path(destination).write_bytes(b"x" * expected_size)
+        calls["destination"] = model_path
+        return Response(b"x" * expected_size)
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+
+    def urlretrieve(url, destination):
+        with urlopen(url) as response:
+            Path(destination).write_bytes(response.read())
+        return str(destination), None
 
     monkeypatch.setattr(urllib.request, "urlretrieve", urlretrieve)
 
@@ -57,6 +80,7 @@ def _install_cv(monkeypatch, tmp_path, faces, images=None, download_error=None, 
             return (0, None) if found is None else (len(found), np.asarray(found, dtype=np.float32))
 
     def create(*args, **kwargs):
+        calls["creates"] += 1
         calls["create"] = (args, kwargs)
         if create_error:
             raise create_error
@@ -156,6 +180,7 @@ def test_download_uses_contract_url_and_exact_size(monkeypatch, tmp_path):
 
     assert calls["downloads"] == [probe["request"]["url"]]
     assert calls["destination"].stat().st_size == probe["response"]["bytes"]
+    assert calls["timeout"] == 30
 
 
 def test_opencv_missing_skips_both_quality_features_and_warns_once(monkeypatch, capsys, tmp_path):
@@ -170,10 +195,12 @@ def test_opencv_missing_skips_both_quality_features_and_warns_once(monkeypatch, 
 def test_model_download_failure_returns_empty_results_and_warns_once(monkeypatch, capsys, tmp_path):
     preview = tmp_path / "preview.jpg"
     image = np.zeros((8, 10, 3), dtype=np.uint8)
-    _install_cv(monkeypatch, tmp_path, [None], {str(preview): image}, OSError("offline"))
+    calls = _install_cv(monkeypatch, tmp_path, [None], {str(preview): image}, OSError("offline"))
 
     assert quality.hints([preview]) == {}
+    assert quality.hints([preview]) == {}
     assert quality.face_crops(preview, tmp_path / "faces") == []
+    assert len(calls["downloads"]) == 1
     assert len(capsys.readouterr().err.splitlines()) == 1
 
 
@@ -183,16 +210,40 @@ def test_wrong_model_size_is_deleted_and_not_used(monkeypatch, tmp_path):
     image = np.zeros((8, 10, 3), dtype=np.uint8)
     calls = _install_cv(monkeypatch, tmp_path, [None], {str(preview): image})
 
-    def write_wrong_size(url, destination):
-        calls["downloads"].append(url)
-        Path(destination).write_bytes(b"bad")
+    class WrongSizeResponse:
+        def __enter__(self):
+            return self
 
-    monkeypatch.setattr(urllib.request, "urlretrieve", write_wrong_size)
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b"bad"
+
+    def write_wrong_size(url, timeout=None):
+        calls["downloads"].append(url)
+        calls["timeout"] = timeout
+        calls["destination"] = model_path
+        return WrongSizeResponse()
+
+    monkeypatch.setattr(urllib.request, "urlopen", write_wrong_size)
 
     assert quality.hints([preview]) == {}
     assert calls["downloads"]
     assert not model_path.exists()
     assert "create" not in calls
+
+
+def test_runtime_caches_detector_across_hints_and_face_crops(monkeypatch, tmp_path):
+    preview = tmp_path / "preview.jpg"
+    image = np.zeros((8, 10, 3), dtype=np.uint8)
+    calls = _install_cv(monkeypatch, tmp_path, [None, None], {str(preview): image})
+
+    assert quality.hints([preview])
+    assert quality.face_crops(preview, tmp_path / "faces") == []
+
+    assert calls["creates"] == 1
+    assert calls["downloads"] == [quality._MODEL_URL]
 
 
 def test_yunet_initialization_and_detection_errors_fail_open(monkeypatch, tmp_path):

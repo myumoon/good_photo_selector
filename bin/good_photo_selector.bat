@@ -15,8 +15,15 @@ if "%~1"=="" (
     goto finish
 )
 
+for /f "delims=" %%i in ('where python.exe 2^>nul') do if not defined PYTHON_EXE set "PYTHON_EXE=%%i"
+if not defined PYTHON_EXE (
+    echo [ERROR] Python executable ^(python.exe^) was not found in PATH.
+    set "STATUS=1"
+    goto finish
+)
+
 pushd "%PROJECT_ROOT%"
-python "%PROJECT_ROOT%\src\select_photos.py" %*
+"%PYTHON_EXE%" "%PROJECT_ROOT%\src\select_photos.py" %*
 set "STATUS=%ERRORLEVEL%"
 popd
 

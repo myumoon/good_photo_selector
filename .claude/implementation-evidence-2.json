@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "contract_coverage": [
+    {
+      "contract_id": "M1",
+      "status": "PASS",
+      "evidence_paths": ["bin/good_photo_selector.bat"],
+      "tests": ["launcher-no-args", "launcher-help-inherited-variable"],
+      "counterexample": "PYTHON_EXE was inherited as C:\\missing-python.exe; the batch cleared it, resolved the Anaconda python.exe, ran --help, displayed Done, and exited 0.",
+      "siblings": ["usage guard", "python.exe resolution", "driver invocation", "status capture", "Done/Error and pause"]
+    },
+    {
+      "contract_id": "M2",
+      "status": "NOT_VERIFIED",
+      "evidence_paths": ["bin/setup.bat", "README.md"],
+      "tests": ["Anaconda dependency imports", "pip-dry-run-constrained-installed-packages", "pip-dry-run-opencv-package-availability"],
+      "counterexample": "Anaconda imports Pillow 9.0.1, NumPy 1.21.5, and cv2 4.6.0; constrained pip dry-run reports Pillow and NumPy already satisfied and numpy_planned=false. The configured package source returned no versions for opencv-python-headless. setup.bat was not executed as explicitly instructed; the current PATH's pyenv Python lacks these imports, so its batch branch was not exercised.",
+      "siblings": ["python --version", "claude --version", "Pillow import check", "NumPy import and version constraint", "cv2 import check", "all-installed no-pip branch", "missing-only pip arguments", "pip failure status", "Next message and pause"]
+    },
+    {
+      "contract_id": "M3",
+      "status": "PASS",
+      "evidence_paths": ["README.md", "CLAUDE.md"],
+      "tests": ["previous M3 documentation review", "README setup text update"],
+      "counterexample": "Windows setup now states that only missing Pillow/NumPy/OpenCV packages are installed and existing packages are not updated; prior review verified native Windows Python usage and the optional exiftool fallback description.",
+      "siblings": ["README.md", "CLAUDE.md"]
+    },
+    {
+      "contract_id": "M4",
+      "status": "FAIL",
+      "evidence_paths": ["bin/good_photo_selector.bat", "tests/"],
+      "tests": ["launcher-no-args", "launcher-help-inherited-variable", "pytest-full-suite"],
+      "counterexample": "No-argument invocation exited 1 after Usage; --help exited 0 after Done. pytest ran 40 cases (baseline 40) but reported 4 passed and 36 errors.",
+      "siblings": ["launcher no-argument path", "launcher help fallback", "pytest suite count and result"]
+    },
+    {
+      "contract_id": "I1",
+      "status": "PASS",
+      "evidence_paths": ["src/"],
+      "tests": ["path-limited-diff"],
+      "counterexample": "git diff main..HEAD -- src bin/setup_sendto.bat produced no diff output and exited 0.",
+      "siblings": ["all files under src/"]
+    },
+    {
+      "contract_id": "I2",
+      "status": "PASS",
+      "evidence_paths": ["bin/setup_sendto.bat"],
+      "tests": ["path-limited-diff"],
+      "counterexample": "git diff main..HEAD -- src bin/setup_sendto.bat produced no diff output and exited 0; the Send To TargetPath was not changed.",
+      "siblings": ["Send To shortcut TargetPath"]
+    },
+    {
+      "contract_id": "I3",
+      "status": "PASS",
+      "evidence_paths": ["bin/good_photo_selector.bat", "src/"],
+      "tests": ["launcher-help-inherited-variable", "path-limited-diff"],
+      "counterexample": "The launcher was exercised with --help only; no photo folder was passed, and src/ remained unchanged, so the launcher/setup changes add no photo-folder writes.",
+      "siblings": ["launcher execution path", "driver XMP write path"]
+    }
+  ],
+  "verification_outputs": [
+    {
+      "id": "launcher-no-args",
+      "command": "cmd.exe /d /c 'bin\\good_photo_selector.bat < nul'",
+      "output_tail": " GootPhotoSelector\n==============================\nUsage: right-click files/folder -> Send to -> GootPhotoSelector\n\n==============================\n  Error (code 1)\n==============================\nPress Enter to close...\nnoargs-exit=1"
+    },
+    {
+      "id": "launcher-help-inherited-variable",
+      "command": "PATH prepended with C:\\Users\\neko\\Anaconda3 and PYTHON_EXE=C:\\missing-python.exe; cmd.exe /d /c 'bin\\good_photo_selector.bat --help < nul'",
+      "output_tail": "  --model MODEL    Claude model name (overrides settings)\n  --dry-run        Build sheets without calling Claude or writing XMP\n  --keep-previews  Keep temporary previews and contact sheets\n\n==============================\n  Done\n==============================\nPress Enter to close...\nhelp-exit=0"
+    },
+    {
+      "id": "pip-dry-run-invalid-constraint-attempt",
+      "command": "Anaconda python -m pip install --dry-run --constraint 'numpy==1.21.5' pillow opencv-python-headless",
+      "output_tail": "ERROR: Could not open requirements file: [Errno 2] No such file or directory: 'numpy==1.21.5'\nexit=1"
+    },
+    {
+      "id": "pip-dry-run-opencv-package-availability",
+      "command": "Anaconda python -m pip install --dry-run --constraint <temporary file containing numpy==1.21.5> pillow opencv-python-headless",
+      "output_tail": "ERROR: Could not find a version that satisfies the requirement opencv-python-headless (from versions: none)\nERROR: No matching distribution found for opencv-python-headless\nexit=1"
+    },
+    {
+      "id": "pip-dry-run-constrained-installed-packages",
+      "command": "Anaconda python -m pip install --dry-run --constraint <temporary file containing numpy==1.21.5> pillow numpy",
+      "output_tail": "Defaulting to user installation because normal site-packages is not writeable\nRequirement already satisfied: pillow in c:\\users\\neko\\anaconda3\\lib\\site-packages (9.0.1)\nRequirement already satisfied: numpy in c:\\users\\neko\\anaconda3\\lib\\site-packages (1.21.5)\ndry-run exit=0\nnumpy_planned=false"
+    },
+    {
+      "id": "fixture-presence",
+      "command": "Test-Path .env/test",
+      "output_tail": "False"
+    },
+    {
+      "id": "pytest-full-suite",
+      "command": "python -m pytest -q tests (PATH prepended with C:\\Users\\neko\\Anaconda3; output tail selected with Select-Object -Last 3)",
+      "output_tail": "ERROR tests/test_select_photos.py::test_three_digit_fallback_badge_has_room_for_full_text\nERROR tests/test_select_photos.py::test_hints_are_computed_per_burst - Permis...\n4 passed, 36 errors in 0.98s\npytest-exit=1"
+    },
+    {
+      "id": "path-limited-diff",
+      "command": "git diff main..HEAD -- src bin/setup_sendto.bat",
+      "output_tail": "path-limited-diff-exit=0"
+    }
+  ]
+}

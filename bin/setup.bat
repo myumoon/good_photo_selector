@@ -2,6 +2,8 @@
 chcp 65001 >nul
 setlocal
 set "STATUS=0"
+set "INSTALL_ARGS="
+set "NUMPY_VERSION="
 
 echo ==============================
 echo   GootPhotoSelector Setup
@@ -33,9 +35,31 @@ if errorlevel 1 (
     if errorlevel 1 set "STATUS=1"
 )
 
+call python -c "import PIL" >nul 2>&1
+if errorlevel 1 set "INSTALL_ARGS=%INSTALL_ARGS% pillow"
+
+call python -c "import numpy" >nul 2>&1
+if errorlevel 1 (
+    set "INSTALL_ARGS=%INSTALL_ARGS% numpy"
+) else (
+    for /f "delims=" %%V in ('call python -c "import numpy; print(numpy.__version__)"') do set "NUMPY_VERSION=%%V"
+)
+
+call python -c "import cv2" >nul 2>&1
+if errorlevel 1 set "INSTALL_ARGS=%INSTALL_ARGS% opencv-python-headless"
+
 echo.
-echo Installing Python dependencies...
-call python -m pip install pillow numpy opencv-python-headless
+if not defined INSTALL_ARGS (
+    echo [OK] Python dependencies are already installed.
+    goto finish
+)
+
+echo Installing missing Python dependencies...
+if defined NUMPY_VERSION (
+    call python -m pip install --constraint "numpy==%NUMPY_VERSION%" %INSTALL_ARGS%
+) else (
+    call python -m pip install %INSTALL_ARGS%
+)
 if errorlevel 1 (
     echo [ERROR] Python dependency installation failed.
     set "STATUS=1"

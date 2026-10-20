@@ -10,13 +10,15 @@ ClaudeがNEFファイルを評価し、XMPサイドカーにラベル（採用 /
 
 ## 使い方
 
-NEF フォルダまたはファイルを指定して Python ドライバーを実行する:
+Windows では NEF フォルダまたはファイルを指定して Python ドライバーを実行する:
 
-```bash
-python3 src/select_photos.py <DIR | NEF...>
-python3 src/select_photos.py <DIR | NEF...> --model opus
-python3 src/select_photos.py <DIR | NEF...> --dry-run
+```powershell
+python src\select_photos.py <DIR | NEF...>
+python src\select_photos.py <DIR | NEF...> --model opus
+python src\select_photos.py <DIR | NEF...> --dry-run
 ```
+
+Linux/WSL から手動実行する場合は `python3 src/select_photos.py` を使います。
 
 設定は `settings/*.ini` から読み込む。`--dry-run` はシート生成まで行い、Claude 呼び出しと XMP 書き込みをしない。`--keep-previews` を付けると一時プレビューとコンタクトシートを残す。
 
@@ -89,7 +91,7 @@ Lightroomの `xmpDM:good` フィールドで制御する:
 - 評価なし（フラグなし）は「属性なしXMP」と「XMPサイドカーなし」のどちらでも同義として扱う
 - XMPサイドカーが存在しない場合は新規作成する
 - 既存XMPはカメラ設定等を保持したまま `xmpDM:good` のみ更新する
-- exiftool は導入不要です。XMP の書き込みには使用しません。
+- exiftool は必須ではありません。内蔵 JPEG がない NEF ではプレビュー取得のフォールバックに使い、未導入の場合はその写真をスキップします。XMP の書き込みには使用しません。
 
 ## ディレクトリ構成
 
@@ -111,6 +113,8 @@ Lightroomの `xmpDM:good` フィールドで制御する:
 `docs/xmp_sample/` に採用・不採用・評価なしの実際のXMPファイルが格納されている。フォーマット確認に使用すること。
 
 ## 「送る」メニューからの起動
+
+Windows、Python 3.9 以上、Pillow、Claude Code のネイティブ版が必要です。OpenCV は任意で、未導入の場合は鮮明度ヒントと顔確認をスキップします。WSL は不要です。
 
 ### 初回セットアップ（一度だけ）
 

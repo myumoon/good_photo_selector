@@ -55,12 +55,20 @@ if not defined INSTALL_ARGS (
 )
 
 echo Installing missing Python dependencies...
-if defined NUMPY_VERSION (
-    call python -m pip install --constraint "numpy==%NUMPY_VERSION%" %INSTALL_ARGS%
-) else (
-    call python -m pip install %INSTALL_ARGS%
-)
-if errorlevel 1 (
+if defined NUMPY_VERSION goto install_with_numpy_constraint
+call python -m pip install %INSTALL_ARGS%
+set "INSTALL_STATUS=%ERRORLEVEL%"
+goto check_install_status
+
+:install_with_numpy_constraint
+set "CONSTRAINT_FILE=%TEMP%\good_photo_selector-%RANDOM%-%RANDOM%.txt"
+>"%CONSTRAINT_FILE%" echo numpy==%NUMPY_VERSION%
+call python -m pip install --constraint "%CONSTRAINT_FILE%" %INSTALL_ARGS%
+set "INSTALL_STATUS=%ERRORLEVEL%"
+del /q "%CONSTRAINT_FILE%" >nul 2>&1
+
+:check_install_status
+if not "%INSTALL_STATUS%"=="0" (
     echo [ERROR] Python dependency installation failed.
     set "STATUS=1"
 ) else (

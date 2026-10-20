@@ -1,0 +1,7 @@
+{
+  "status": "DONE",
+  "branch": "feature-sendto-windows-native-20261020",
+  "summary": "Windows ネイティブ起動とセットアップを batch shim に対応させ、README と CLAUDE.md の実行環境・CLI・exiftool 説明を更新しました。",
+  "intent": "ランチャーは PATH から python.exe を直接解決して Explorer の引数を再展開せず渡し、setup.bat は call で .cmd/.bat shim から制御を戻します。",
+  "notes": "実 dry-run と日本語・空白・& % ^ を含むパスで Done を確認。引数なしは exit 1、pytest は基準どおり 40 passed。src/ と setup_sendto.bat は未変更です。"
+}

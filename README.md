@@ -15,6 +15,7 @@ Claude Code を使って Nikon NEF 写真を自動選別し、Lightroom 互換�
 - Claude Code ネイティブ Windows 版（`claude` コマンドを PATH に登録）
 - Adobe Lightroom（結果確認用）
 - OpenCV は任意です。未導入の場合、鮮明度ヒントと顔確認をスキップします。
+- exiftool は任意です。内蔵 JPEG がない NEF のプレビュー取得でフォールバックに使い、未導入の場合はその写真をスキップします。XMP の書き込みには使用しません。
 
 ## セットアップ
 

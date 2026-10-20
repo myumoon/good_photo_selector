@@ -27,7 +27,7 @@ cd GootPhotoSelector
 bin\setup.bat
 ```
 
-先に Python 3.9 以上と Claude Code のネイティブ Windows 版をインストールし、`python` と `claude` を PATH から実行できるようにしてください。`bin\setup.bat` は両方の有無を確認し、Pillow、NumPy、OpenCV をインストールします。OpenCV は任意で、未導入の場合は鮮明度ヒントと顔確認をスキップします。
+先に Python 3.9 以上と Claude Code のネイティブ Windows 版をインストールし、`python` と `claude` を PATH から実行できるようにしてください。`bin\setup.bat` は両方の有無を確認し、未導入の Pillow、NumPy、OpenCV のみをインストールします。既に入っているパッケージは更新しません。OpenCV は任意で、未導入の場合は鮮明度ヒントと顔確認をスキップします。
 
 ### 2. 「送る」メニューへの登録（初回のみ）
 

@@ -185,5 +185,33 @@
     ".env\\test was absent in this worktree; M4 used its permitted --help fallback.",
     "The initial restricted-PATH diagnostic omitted Anaconda DLL directories; the corrected check retained the existing PATH and passed.",
     "pytest result matches the 40-passed baseline."
-  ]
+  ],
+  "post_verification_update": {
+    "note": "The worktree-local .env\\test was absent, but the task's absolute project-root .env\\test existed. The actual dry-run and a Japanese/special-character junction-path dry-run both ended Done with exit 0; this supersedes the earlier fallback-only note.",
+    "additional_contract_tests": {
+      "M1": ["M1-special-path-dry-run"],
+      "M4": ["M4-actual-dry-run"],
+      "I3": ["M4-actual-dry-run", "M1-special-path-dry-run"]
+    },
+    "verification_outputs": [
+      {
+        "id": "M4-actual-dry-run",
+        "command": "PowerShell: cmd.exe /d /c bin\\good_photo_selector.bat \"H:\\prog\\0_myprogram\\tools\\good_photo_selector\\.env\\test\" --dry-run < nul (Anaconda prepended; original PATH retained)",
+        "exit_code": 0,
+        "output_tail": "  sheet: C:\\Users\\neko\\AppData\\Local\\Temp\\good-photo-selector-imyis751\\sheets\\burst-006-01.jpg (tiles 1-1)\r\nDry run: burst 7 (1 photos)\r\n  sheet: C:\\Users\\neko\\AppData\\Local\\Temp\\good-photo-selector-imyis751\\sheets\\burst-007-01.jpg (tiles 1-1)\r\n\r\n==============================\r\n  Done\r\n==============================\r\nPress Enter to close...\r\nexit=0"
+      },
+      {
+        "id": "M1-special-path-dry-run",
+        "command": "PowerShell: cmd.exe /d /c bin\\good_photo_selector.bat \"H:\\prog\\0_myprogram\\tools\\.worktrees\\good_photo_selector\\feature-sendto-windows-native-20261020\\.tmp\\日本語 & spaces 100% ^ folder\" --dry-run < nul (junction to project-root .env\\test)",
+        "exit_code": 0,
+        "output_tail": "  sheet: C:\\Users\\neko\\AppData\\Local\\Temp\\good-photo-selector-clpgkvzr\\sheets\\burst-006-01.jpg (tiles 1-1)\r\nDry run: burst 7 (1 photos)\r\n  sheet: C:\\Users\\neko\\AppData\\Local\\Temp\\good-photo-selector-clpgkvzr\\sheets\\burst-007-01.jpg (tiles 1-1)\r\n\r\n==============================\r\n  Done\r\n==============================\r\nPress Enter to close...\r\nexit=0"
+      },
+      {
+        "id": "junction-cleanup",
+        "command": "PowerShell: after verifying the in-worktree reparse point, [System.IO.Directory]::Delete(path, $false); check link and target existence",
+        "exit_code": 0,
+        "output_tail": "link_exists=False\ntarget_exists=True"
+      }
+    ]
+  }
 }

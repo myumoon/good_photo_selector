@@ -1,0 +1,8 @@
+{
+  "status": "DONE_WITH_CONCERNS",
+  "branch": "feature-sendto-windows-native-20261020",
+  "summary": "Windows セットアップで Pillow/NumPy/OpenCV の不足分だけを導入し、既存 NumPy の版を一時制約ファイルで保護しました。ランチャーの継承 PYTHON_EXE を初期化し、README に既存パッケージを更新しない旨を記載しました。",
+  "intent": "既存の数値計算環境を pip の再解決から保護しつつ、不足依存だけを追加できるようにしました。",
+  "notes": "Anaconda Python 3.9.12 の pip dry-run では Pillow 9.0.1 と NumPy 1.21.5 が既に満たされ、NumPy の導入予定はありませんでした。setup.bat は指示により未実行です。.env/test がないため、ランチャーは --help 経路で確認しました。",
+  "concerns": "pytest は基準と同じ40件を実行しましたが、4 passed・36 errors で終了しました。opencv-python-headless の dry-run は設定済みパッケージソースに候補がなく解決できませんでした。setup.bat の実行経路は指示に従い未検証です。"
+}

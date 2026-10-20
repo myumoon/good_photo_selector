@@ -16,7 +16,7 @@ if errorlevel 1 (
     goto finish
 )
 
-python --version
+call python --version
 if errorlevel 1 (
     echo [ERROR] Python could not be started.
     set "STATUS=1"
@@ -29,13 +29,13 @@ if errorlevel 1 (
     echo Install the native Windows version of Claude Code.
     set "STATUS=1"
 ) else (
-    claude --version
+    call claude --version
     if errorlevel 1 set "STATUS=1"
 )
 
 echo.
 echo Installing Python dependencies...
-python -m pip install pillow numpy opencv-python-headless
+call python -m pip install pillow numpy opencv-python-headless
 if errorlevel 1 (
     echo [ERROR] Python dependency installation failed.
     set "STATUS=1"

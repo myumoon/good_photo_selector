@@ -16,3 +16,4 @@
 - 実環境の Pillow 9.0.1 では `Image.Resampling` が未提供。縮小処理は `Image.LANCZOS` fallback も用意する。
 PowerShell task shell: Git Bash may fail to start with CreateFileMapping Win32 error 5; use PowerShell. Default pytest temp under LocalAppData may be blocked, so set TEMP/TMP to a workspace .tmp; the pyenv Python may lack pytest while Anaconda Python has it.
 - When prepending Anaconda for a launcher check, retain the existing PATH; dropping it can hide Anaconda DLL directories and make Pillow's `_imaging` import fail.
+- PowerShell `Remove-Item` can throw `NullReferenceException` on a directory junction; after verifying the in-worktree reparse point, `[System.IO.Directory]::Delete(path, $false)` removes the link without traversing its target.

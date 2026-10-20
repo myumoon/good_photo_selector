@@ -1,6 +1,7 @@
 @echo off
 chcp 65001 >nul
 setlocal
+set "PYTHON_EXE="
 set PYTHONUTF8=1
 
 for %%i in ("%~dp0..") do set "PROJECT_ROOT=%%~fi"

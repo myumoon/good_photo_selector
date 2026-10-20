@@ -10,13 +10,15 @@ ClaudeがNEFファイルを評価し、XMPサイドカーにラベル（採用 /
 
 ## 使い方
 
-NEF フォルダまたはファイルを指定して Python ドライバーを実行する:
+Windows では NEF フォルダまたはファイルを指定して Python ドライバーを実行する:
 
-```bash
-python3 src/select_photos.py <DIR | NEF...>
-python3 src/select_photos.py <DIR | NEF...> --model opus
-python3 src/select_photos.py <DIR | NEF...> --dry-run
+```powershell
+python src\select_photos.py <DIR | NEF...>
+python src\select_photos.py <DIR | NEF...> --model opus
+python src\select_photos.py <DIR | NEF...> --dry-run
 ```
+
+Linux/WSL から手動実行する場合は `python3 src/select_photos.py` を使います。
 
 設定は `settings/*.ini` から読み込む。`--dry-run` はシート生成まで行い、Claude 呼び出しと XMP 書き込みをしない。`--keep-previews` を付けると一時プレビューとコンタクトシートを残す。
 
@@ -89,7 +91,7 @@ Lightroomの `xmpDM:good` フィールドで制御する:
 - 評価なし（フラグなし）は「属性なしXMP」と「XMPサイドカーなし」のどちらでも同義として扱う
 - XMPサイドカーが存在しない場合は新規作成する
 - 既存XMPはカメラ設定等を保持したまま `xmpDM:good` のみ更新する
-- exiftoolは属性形式を要素形式に変換してしまうため書き込みには使用しない
+- exiftool は必須ではありません。内蔵 JPEG がない NEF ではプレビュー取得のフォールバックに使い、未導入の場合はその写真をスキップします。XMP の書き込みには使用しません。
 
 ## ディレクトリ構成
 
@@ -101,8 +103,10 @@ Lightroomの `xmpDM:good` フィールドで制御する:
 
 ## ツール
 
-- **exiftool**: WSL 内で `sudo apt install libimage-exiftool-perl` でインストール。Windows の場合は [exiftool.org](https://exiftool.org/) からダウンロードして PATH に配置
-  - 用途: NEFからのJPEGプレビュー抽出、XMPの読み取り確認など
+- **Python 3.9 以上** と **Pillow**: Windows の `python` コマンドから利用します。
+- **OpenCV**: 任意です。未導入の場合、鮮明度ヒントと顔確認をスキップします。
+- **Claude Code**: ネイティブ Windows 版をインストールし、`claude` コマンドを PATH から実行できるようにします。
+- `bin\setup.bat` は Python/Claude Code の有無を確認し、Pillow、NumPy、OpenCV をインストールします。
 
 ## サンプルXMP
 
@@ -110,15 +114,17 @@ Lightroomの `xmpDM:good` フィールドで制御する:
 
 ## 「送る」メニューからの起動
 
+Windows、Python 3.9 以上、Pillow、Claude Code のネイティブ版が必要です。OpenCV は任意で、未導入の場合は鮮明度ヒントと顔確認をスキップします。WSL は不要です。
+
 ### 初回セットアップ（一度だけ）
 
-`bin\setup_sendto.bat` をダブルクリックすると、右クリック → 送る に「写真選別」が登録される。
+Python 3.9 以上と Claude Code のネイティブ Windows 版を用意した後、`bin\setup.bat` を実行して依存関係をセットアップします。続いて `bin\setup_sendto.bat` を実行すると、右クリック → 送る に「GootPhotoSelector」が登録されます。
 
 ### 使い方
 
 1. エクスプローラーで NEF ファイルが入ったフォルダを右クリック
 2. 送る → GootPhotoSelector
-3. WSL ターミナルが開き、Claude が自動で選別を実行
+3. Windows のコンソールで Claude が自動選別を実行
 4. 完了後に「Selection complete: X accepted / Y rejected」と表示される
 5. Enter で閉じる
 
@@ -126,11 +132,12 @@ Lightroomの `xmpDM:good` フィールドで制御する:
 
 ```
 good_photo_selector.bat  ← 「送る」ショートカットのターゲット
-  │ Windowsパス → WSLパスに変換
-  └→ WSL で good_photo_selector.sh <folder> を起動
-       └→ python3 src/select_photos.py <folder>
+  └→ python src\select_photos.py <folder または NEF...>
+       └→ Python + Pillow で NEF を処理し、Claude が連写を判定
+            └→ XMP サイドカーに結果を書き込み
 ```
 
 ### 補足
 
-- 複数フォルダを同時に送ると、それぞれ別の WSL ウィンドウで並行処理される
+- フォルダは1つ、または NEF ファイルを複数選択して実行します。WSL は不要です。
+- `bin/good_photo_selector.sh` は Linux/WSL から手動実行する場合の補助です。その環境に Claude Code がない場合は実行できません。
